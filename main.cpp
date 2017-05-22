@@ -4,6 +4,7 @@
 #include <opencv2/line_descriptor/descriptor.hpp>
 #include <iostream>
 #include <chrono>
+#include <memory>
 
 int main(int argc, char** argv) {
   if(argc != 2) {
@@ -13,7 +14,7 @@ int main(int argc, char** argv) {
 
   cv::Mat image;
   image = cv::imread(argv[1], cv::IMREAD_COLOR);
-  cv::resize(image, image, cv::Size(1080, 960));
+  //cv::resize(image, image, cv::Size(1080, 960));
   //cv::resize(image, image, cv::Size(), 0.4, 0.4);
   //cv::resize(image, image, cv::Size(), 1.0, 1.0);
 
@@ -92,6 +93,8 @@ int main(int argc, char** argv) {
 	*/
 
 	// Find for every bounding box the containing segments
+	std::vector<std::vector<std::shared_ptr<cv::line_descriptor::KeyLine>>> keylinesInContours(contours.size());
+
 	start = std::chrono::steady_clock::now();
 	int contours_size = contours.size();
 	#pragma omp parallel for
@@ -104,7 +107,7 @@ int main(int argc, char** argv) {
 		#pragma omp parallel for
 		for(int j = 0; j < keylines_size; j++) {
 			if(i == j) {
-				lookup2d[i][j] = true;
+				keylinesInContours[i].push_back(std::make_shared<cv::line_descriptor::KeyLine>(keylines[j]));
 			}
 			else{
 				register cv::line_descriptor::KeyLine kl_j = keylines[j];
@@ -112,15 +115,9 @@ int main(int argc, char** argv) {
 					if(std::abs(kl_j.pt.y - py) < ll_2) {
 						if((0 < cv::pointPolygonTest(contours[i], kl_j.getStartPoint(), false)) &&
 							 (0 < cv::pointPolygonTest(contours[i], kl_j.getEndPoint(), false))) {
-							lookup2d[i][j] = true;
-						} else {
-							lookup2d[i][j] = false;
+							keylinesInContours[i].push_back(std::make_shared<cv::line_descriptor::KeyLine>(keylines[j]));
 						}
-					} else {
-						lookup2d[i][j] = false;
 					}
-				} else {
-					lookup2d[i][j] = false;
 				}
 			}
 		}
@@ -128,15 +125,15 @@ int main(int argc, char** argv) {
 	end = std::chrono::steady_clock::now();
 	std::cout << "Find segments in bounding boxes: " << std::chrono::duration <double, std::milli> (end - start).count() << " ms" << std::endl;
 
-	std::vector<std::vector<int>> support_scores(lookup2d.size());
+	std::vector<std::vector<int>> support_scores(keylinesInContours.size());
 
 	// Calculate support score of every segment for every bounding box
 	start = std::chrono::steady_clock::now();
 	#pragma omp parallel for
-	for(int i = 0; i < lookup2d.size(); i++) {
-		support_scores[i] = std::vector<int>(lookup2d[i].size());
+	for(int i = 0; i < keylinesInContours.size(); i++) {
+		support_scores[i] = std::vector<int>(keylinesInContours[i].size());
 		#pragma omp parallel for
-		for(int j = 0; j < lookup2d[i].size(); ++j) {
+		for(int j = 0; j < keylinesInContours[i].size(); ++j) {
 			support_scores[i][j] = 0;
 		}
 	}
@@ -145,39 +142,38 @@ int main(int argc, char** argv) {
 	std::vector<float> diff_length_vec;
 	std::vector<float> diff_norm_pt_vec;
 	int lookup2d_size = lookup2d.size();
+	int keylinesInContours_size = keylinesInContours.size();
 	register float diff_length;
 	register float diff_angle;
 	register float diff_norm_pt;
-	#pragma omp parallel for
-	for(int i = 0; i < lookup2d_size; i++) {
-		int lookup2d_i_size = lookup2d[i].size();
-		#pragma omp parallel for
-		for(int j = 0; j < lookup2d_i_size; j++) {
-			register cv::line_descriptor::KeyLine kl_j = keylines[j];
+	//#pragma omp parallel for
+	for(int i = 0; i < keylinesInContours_size; i++) {
+		int keylinesInContours_i_size = keylinesInContours[i].size();
+		//#pragma omp parallel for
+		for(int j = 0; j < keylinesInContours_i_size; j++) {
+			register std::shared_ptr<cv::line_descriptor::KeyLine> kl_j = keylinesInContours[i][j];
 
-			for(int k = j+1; k < lookup2d_i_size; k++) {
-				register cv::line_descriptor::KeyLine kl_k = keylines[k];
+			for(int k = j+1; k < keylinesInContours_i_size; k++) {
+				register std::shared_ptr<cv::line_descriptor::KeyLine> kl_k = keylinesInContours[i][k];
 
-				if((true == lookup2d[i][j])) {
-					diff_length = std::abs(kl_j.lineLength - kl_k.lineLength);
-					//diff_length_vec.push_back(diff_length);
+				diff_length = std::abs(kl_j->lineLength - kl_k->lineLength);
+				//diff_length_vec.push_back(diff_length);
 
-					if((diff_length) < 5.0) {
-						diff_angle = std::abs(kl_j.angle - kl_k.angle);
-						//diff_angle_vec.push_back(diff_angle);
+				if((diff_length) < 5.0) {
+					diff_angle = std::abs(kl_j->angle - kl_k->angle);
+					//diff_angle_vec.push_back(diff_angle);
 
-						if((diff_angle) < 3.0) {
-							diff_norm_pt = cv::norm(kl_j.pt - kl_k.pt);
-							//diff_norm_pt_vec.push_back(diff_norm_pt);
+					if((diff_angle) < 3.0) {
+						diff_norm_pt = cv::norm(kl_j->pt - kl_k->pt);
+						//diff_norm_pt_vec.push_back(diff_norm_pt);
 
-							if((diff_norm_pt) < 15.0) {
-								/*
-								std::cout << "Under the thresholds" << std::endl;
-								std::cout << "diff_angle = " << diff_angle << ", diff_length = " << diff_length << ", diff_norm_pt = " << diff_norm_pt << std::endl;
-								*/
-								support_scores[i][j] += 1;
-								support_scores[j][i] += 1;
-							}
+						if((diff_norm_pt) < 15.0) {
+							/*
+							std::cout << "Under the thresholds" << std::endl;
+							std::cout << "diff_angle = " << diff_angle << ", diff_length = " << diff_length << ", diff_norm_pt = " << diff_norm_pt << std::endl;
+							*/
+							support_scores[i][j] += 1;
+							support_scores[i][k] += 1;
 						}
 					}
 				}
@@ -200,20 +196,26 @@ int main(int argc, char** argv) {
 
 	// Select s_cand
 
-	std::vector<int> support_candidates(lookup2d.size());
-	std::vector<int> support_candidates_pos(lookup2d.size());
+	std::vector<int> support_candidates(keylinesInContours_size);
+	std::vector<int> support_candidates_pos(keylinesInContours_size);
 
 	cv::Mat image_candidates;
 	image.copyTo(image_candidates);
 
 	start = std::chrono::steady_clock::now();
 	std::vector<int> support_score_i;
-	#pragma omp parallel for
-	for(int i = 0; i < lookup2d_size; ++i) {
+	//#pragma omp parallel for
+	for(int i = 0; i < keylinesInContours.size(); i++) {
 		support_candidates_pos[i] = std::distance(support_scores[i].begin(), std::max_element(support_scores[i].begin(), support_scores[i].end()));
+		//std::cout << "support_candidate_pos[" << i << "] = " << support_candidates_pos[i] << std::endl;
 		support_candidates[i] = support_scores[i][std::distance(support_scores[i].begin(), std::max_element(support_scores[i].begin(), support_scores[i].end()))];
+		//std::cout << "max_support_candidates[" << i << "] = " << support_candidates[i] << std::endl;
+		//std::cout << "min_support_candidates[" << i << "] = " << support_scores[i][std::distance(support_scores[i].begin(), std::min_element(support_scores[i].begin(), support_scores[i].end()))] << std::endl;
 
-		cv::line(image_candidates, keylines.at(support_candidates_pos[i]).getStartPoint(), keylines[support_candidates_pos[i]].getEndPoint(), cv::Scalar(0, 0, 255));
+		if(0 < support_candidates[i]) {
+			register std::shared_ptr<cv::line_descriptor::KeyLine> kl = keylinesInContours[i][support_candidates_pos[i]];
+			cv::line(image_candidates, kl->getStartPoint(), kl->getEndPoint(), cv::Scalar(0, 0, 255));
+		}
 	}
 	end = std::chrono::steady_clock::now();
 	std::cout << "Select s_cand: " << std::chrono::duration <double, std::milli> (end - start).count() << " ms" << std::endl;
