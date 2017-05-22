@@ -32,6 +32,7 @@ int main(int argc, char** argv) {
   std::vector<cv::line_descriptor::KeyLine> keylines;
   // Detect lines with the LSD
   auto start = std::chrono::steady_clock::now();
+  auto total_start = start;
   LSD.detect(image, keylines, 2, 1);
   auto end = std::chrono::steady_clock::now();
   std::cout << "LSD: " << std::chrono::duration <double, std::milli> (end - start).count() << " ms" << std::endl;
@@ -128,12 +129,14 @@ int main(int argc, char** argv) {
 	std::vector<std::vector<int>> support_scores(keylinesInContours.size());
 
 	// Calculate support score of every segment for every bounding box
+	int keylinesInContours_size = keylinesInContours.size();
 	start = std::chrono::steady_clock::now();
 	#pragma omp parallel for
-	for(int i = 0; i < keylinesInContours.size(); i++) {
+	for(int i = 0; i < keylinesInContours_size; i++) {
+		int keylinesInContours_i_size = keylinesInContours[i].size();
 		support_scores[i] = std::vector<int>(keylinesInContours[i].size());
 		#pragma omp parallel for
-		for(int j = 0; j < keylinesInContours[i].size(); ++j) {
+		for(int j = 0; j < keylinesInContours_i_size; ++j) {
 			support_scores[i][j] = 0;
 		}
 	}
@@ -141,15 +144,13 @@ int main(int argc, char** argv) {
 	std::vector<float> diff_angle_vec;
 	std::vector<float> diff_length_vec;
 	std::vector<float> diff_norm_pt_vec;
-	int lookup2d_size = lookup2d.size();
-	int keylinesInContours_size = keylinesInContours.size();
 	register float diff_length;
 	register float diff_angle;
 	register float diff_norm_pt;
-	//#pragma omp parallel for
+	#pragma omp parallel for
 	for(int i = 0; i < keylinesInContours_size; i++) {
 		int keylinesInContours_i_size = keylinesInContours[i].size();
-		//#pragma omp parallel for
+		#pragma omp parallel for
 		for(int j = 0; j < keylinesInContours_i_size; j++) {
 			register std::shared_ptr<cv::line_descriptor::KeyLine> kl_j = keylinesInContours[i][j];
 
@@ -203,9 +204,8 @@ int main(int argc, char** argv) {
 	image.copyTo(image_candidates);
 
 	start = std::chrono::steady_clock::now();
-	std::vector<int> support_score_i;
-	//#pragma omp parallel for
-	for(int i = 0; i < keylinesInContours.size(); i++) {
+	#pragma omp parallel for
+	for(int i = 0; i < keylinesInContours_size; i++) {
 		support_candidates_pos[i] = std::distance(support_scores[i].begin(), std::max_element(support_scores[i].begin(), support_scores[i].end()));
 		//std::cout << "support_candidate_pos[" << i << "] = " << support_candidates_pos[i] << std::endl;
 		support_candidates[i] = support_scores[i][std::distance(support_scores[i].begin(), std::max_element(support_scores[i].begin(), support_scores[i].end()))];
@@ -220,12 +220,12 @@ int main(int argc, char** argv) {
 	end = std::chrono::steady_clock::now();
 	std::cout << "Select s_cand: " << std::chrono::duration <double, std::milli> (end - start).count() << " ms" << std::endl;
 
+	std::cout << "Total time: " << std::chrono::duration <double, std::milli> (end - total_start).count() << " ms" << std::endl;
+
 	cv::imwrite("debug-candidate-segments.jpg", image_candidates);
 	cv::namedWindow("Image with candidate segments", cv::WINDOW_NORMAL);
 	cv::resizeWindow("Image with candidate segments", 600, 600);
 	cv::imshow("Image with candidate segments", image_candidates);
-
-
 
 	cv::waitKey(0);
 
