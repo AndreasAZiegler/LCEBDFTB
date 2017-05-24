@@ -9,50 +9,6 @@
 
 #include <mgl2/mgl.h>
 
-void mgls_prepare1d(mglData *y, mglData *y1=0, mglData *y2=0, mglData *x1=0, mglData *x2=0)
-{
-  register long i;
-  register long n=50;
-  if(y) {
-    y->Create(n,3);
-  }
-  if(x1) {
-    x1->Create(n);
-  }
-  if(x2) {
-    x2->Create(n);
-  }
-  if(y1) {
-    y1->Create(n);
-  }
-  if(y2) {
-    y2->Create(n);
-  }
-  mreal xx;
-  for(i=0;i<n;i++)
-  {
-    xx = i/(n-1.);
-    if(y)
-    {
-      y->a[i] = 0.7*sin(2*M_PI*xx) + 0.5*cos(3*M_PI*xx) + 0.2*sin(M_PI*xx);
-      y->a[i+n] = sin(2*M_PI*xx);
-      y->a[i+2*n] = cos(2*M_PI*xx);
-    }
-    if(y1) {
-      y1->a[i] = 0.5+0.3*cos(2*M_PI*xx);
-    }
-    if(y2) {
-      y2->a[i] = 0.3*sin(2*M_PI*xx);
-    }
-    if(x1) {
-      x1->a[i] = xx*2-1;
-    }
-    if(x2) {
-      x2->a[i] = 0.05+0.03*cos(2*M_PI*xx);
-    }
-  }
-}
-
 int main(int argc, char** argv) {
   if(argc != 2) {
     std::cout << "Usage: display_image ImageToLoadAndDisplay" << std::endl;
@@ -279,18 +235,18 @@ int main(int argc, char** argv) {
 		if(0 < support_candidates[i]) {
 			std::shared_ptr<cv::line_descriptor::KeyLine> kl = keylinesInContours[i][support_candidates_pos[i]];
 			std::vector<cv::Point> pt1s;
-			pt1s.push_back(cv::Point(0, kl->pt.y + kl->pt.x*std::tan(M_PI_2 - kl->angle) - 30));
-			pt1s.push_back(cv::Point(0, kl->pt.y + kl->pt.x*std::tan(M_PI_2 - kl->angle) - 15));
+			pt1s.push_back(cv::Point(0, kl->pt.y + kl->pt.x*std::tan(M_PI_2 - kl->angle) - 16));
+			pt1s.push_back(cv::Point(0, kl->pt.y + kl->pt.x*std::tan(M_PI_2 - kl->angle) - 8));
 			pt1s.push_back(cv::Point(0, kl->pt.y + kl->pt.x*std::tan(M_PI_2 - kl->angle)));
-			pt1s.push_back(cv::Point(0, kl->pt.y + kl->pt.x*std::tan(M_PI_2 - kl->angle) + 15));
-			pt1s.push_back(cv::Point(0, kl->pt.y + kl->pt.x*std::tan(M_PI_2 - kl->angle) + 30));
+			pt1s.push_back(cv::Point(0, kl->pt.y + kl->pt.x*std::tan(M_PI_2 - kl->angle) + 8));
+			pt1s.push_back(cv::Point(0, kl->pt.y + kl->pt.x*std::tan(M_PI_2 - kl->angle) + 16));
 
 			std::vector<cv::Point> pt2s;
-			pt2s.push_back(cv::Point(image_greyscale.cols, kl->pt.y - (image_greyscale.cols - kl->pt.x)*std::tan(M_PI_2 - kl->angle) - 30));
-			pt2s.push_back(cv::Point(image_greyscale.cols, kl->pt.y - (image_greyscale.cols - kl->pt.x)*std::tan(M_PI_2 - kl->angle) - 15));
+			pt2s.push_back(cv::Point(image_greyscale.cols, kl->pt.y - (image_greyscale.cols - kl->pt.x)*std::tan(M_PI_2 - kl->angle) - 16));
+			pt2s.push_back(cv::Point(image_greyscale.cols, kl->pt.y - (image_greyscale.cols - kl->pt.x)*std::tan(M_PI_2 - kl->angle) - 8));
 			pt2s.push_back(cv::Point(image_greyscale.cols, kl->pt.y - (image_greyscale.cols - kl->pt.x)*std::tan(M_PI_2 - kl->angle)));
-			pt2s.push_back(cv::Point(image_greyscale.cols, kl->pt.y - (image_greyscale.cols - kl->pt.x)*std::tan(M_PI_2 - kl->angle) + 15));
-			pt2s.push_back(cv::Point(image_greyscale.cols, kl->pt.y - (image_greyscale.cols - kl->pt.x)*std::tan(M_PI_2 - kl->angle) + 30));
+			pt2s.push_back(cv::Point(image_greyscale.cols, kl->pt.y - (image_greyscale.cols - kl->pt.x)*std::tan(M_PI_2 - kl->angle) + 8));
+			pt2s.push_back(cv::Point(image_greyscale.cols, kl->pt.y - (image_greyscale.cols - kl->pt.x)*std::tan(M_PI_2 - kl->angle) + 16));
 
 			perpencidularLineStartEndPoints[i][0] = cv::Point(0, kl->pt.y + kl->pt.x*std::tan(M_PI_2 - kl->angle));
 			perpencidularLineStartEndPoints[i][1] = cv::Point(image_greyscale.cols, kl->pt.y - (image_greyscale.cols - kl->pt.x)*std::tan(M_PI_2 - kl->angle));
@@ -368,42 +324,51 @@ int main(int argc, char** argv) {
 	// Calculate bounding boxes
 	std::vector<std::vector<cv::Point>> contour(keylinesInContours_size, std::vector<cv::Point>(4));
 	for(int i = 0; i < keylinesInContours_size; i++) {
-		//if(0 < support_candidates[i]) {
-		if(i == index) {
+		if(0 < support_candidates[i]) {
+		//if(i == index) {
 			int diff_1 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][0]);
 			int diff_2 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][1]);
 			int diff_3 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][3]);
 			int diff_4 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][4]);
 			std::cout << "diff_1 = " << diff_1 << ", diff_2 = " << diff_2 << ", diff_3 = " << diff_3 << ", diff_4 = " << diff_4 << std::endl;
 			int angle = 0;
-			if((diff_2 < 10) &&
-				 (diff_3 < 10)) {
+			int sign = 1;
+			/*
+			if((diff_2 < 4) &&
+				 (diff_3 < 4)) {
+			*/
+			if(15 > diff_1 + diff_2 + diff_3 + diff_4) {
 				std::cout << "Add one bounding box contour!" << std::endl;
 				std::cout << "start_barcode_pos[" << i << "][2] = " << start_barcode_pos[i][2] << " , end_barcode_pos[" << i << "][2] = " << end_barcode_pos[i][2] << ", end_pos = " << phis[i][2].size() << ", angle = " << keylines[i].angle << std::endl;
 				if(0 < keylines[i].angle) {
 					angle = M_PI_2 - keylines[i].angle;
+					sign = 1;
 				} else if( 0 > keylines[i].angle) {
 					angle = M_PI_2 + keylines[i].angle;
+					sign = -1;
 				}
 
-				contour[i][0] = cv::Point(perpencidularLineStartEndPoints[i][0].x + std::cos(angle)*start_barcode_pos[i][2] - keylines[i].lineLength*std::sin(M_PI_2 + keylines[i].angle)*0.5,
-																	perpencidularLineStartEndPoints[i][0].y + std::sin(angle)*start_barcode_pos[i][2] - keylines[i].lineLength*std::cos(M_PI_2 + keylines[i].angle)*0.5);
-				contour[i][1] = cv::Point(perpencidularLineStartEndPoints[i][0].x + std::cos(angle)*end_barcode_pos[i][2] - keylines[i].lineLength*std::sin(M_PI_2 + keylines[i].angle)*0.5,
-																	perpencidularLineStartEndPoints[i][0].y + std::sin(angle)*end_barcode_pos[i][2] - keylines[i].lineLength*std::cos(M_PI_2 + keylines[i].angle)*0.5);
-				contour[i][2] = cv::Point(perpencidularLineStartEndPoints[i][0].x + std::cos(angle)*end_barcode_pos[i][2] + keylines[i].lineLength*std::sin(M_PI_2 + keylines[i].angle)*0.5,
-																	perpencidularLineStartEndPoints[i][0].y + std::sin(angle)*end_barcode_pos[i][2] + keylines[i].lineLength*std::cos(M_PI_2 + keylines[i].angle)*0.5);
-				contour[i][3] = cv::Point(perpencidularLineStartEndPoints[i][0].x + std::cos(angle)*start_barcode_pos[i][2] + keylines[i].lineLength*std::sin(M_PI_2 + keylines[i].angle)*0.5,
-																	perpencidularLineStartEndPoints[i][0].y + std::sin(angle)*start_barcode_pos[i][2] + keylines[i].lineLength*std::cos(M_PI_2 + keylines[i].angle)*0.5);
+				contour[i][0] = cv::Point(perpencidularLineStartEndPoints[i][0].x + std::cos(angle)*start_barcode_pos[i][2] - sign*keylines[i].lineLength*std::sin(angle)*0.5,
+																	perpencidularLineStartEndPoints[i][0].y + std::sin(angle)*start_barcode_pos[i][2] - keylines[i].lineLength*std::cos(angle)*0.5);
+				contour[i][1] = cv::Point(perpencidularLineStartEndPoints[i][0].x + std::cos(angle)*end_barcode_pos[i][2] - sign*keylines[i].lineLength*std::sin(angle)*0.5,
+																	perpencidularLineStartEndPoints[i][0].y + std::sin(angle)*(end_barcode_pos[i][2]-2500) - keylines[i].lineLength*std::cos(angle)*0.5);
+				contour[i][2] = cv::Point(perpencidularLineStartEndPoints[i][0].x + std::cos(angle)*end_barcode_pos[i][2] + sign*keylines[i].lineLength*std::sin(angle)*0.5,
+																	perpencidularLineStartEndPoints[i][0].y + std::sin(angle)*(end_barcode_pos[i][2]-2500) + keylines[i].lineLength*std::cos(angle)*0.5);
+				contour[i][3] = cv::Point(perpencidularLineStartEndPoints[i][0].x + std::cos(angle)*start_barcode_pos[i][2] + sign*keylines[i].lineLength*std::sin(angle)*0.5,
+																	perpencidularLineStartEndPoints[i][0].y + std::sin(angle)*start_barcode_pos[i][2] + keylines[i].lineLength*std::cos(angle)*0.5);
+				/*
 				std::cout << "perpencidularLineStartEndPoints[" << i << "][0].x = " << perpencidularLineStartEndPoints[i][0].x << ", perpencidularLineStartEndPoints[" << i << "][0].y = " << perpencidularLineStartEndPoints[i][0].y << std::endl;
 				std::cout << "std::cos(M_PI_2 + keylines[" << i << "].angle)*start_barcode_pos[" << i << "][2] = " << std::cos(M_PI_2 + keylines[i].angle)*start_barcode_pos[i][2] << std::endl;
 				std::cout << "std::sin(M_PI_2 + keylines[" << i << "].angle)*start_barcode_pos[" << i << "][2] = " << std::sin(M_PI_2 + keylines[i].angle)*start_barcode_pos[i][2] << std::endl;
+				*/
+				std::cout << "keylines[" << i << "].lineLength*std::sin(M_PI_2 + keylines[" << i << "].angle)*0.5 = " << keylines[i].lineLength*std::sin(M_PI_2 + keylines[i].angle)*0.5 << ", keylines[" << i << "].lineLength*std::cos(M_PI_2 + keylines[" << i << "].angle)*0.5 = " << keylines[i].lineLength*std::cos(M_PI_2 + keylines[i].angle)*0.5 << std::endl;
 				std::cout << "contour[" << i << "][0] = " << contour[i][0] << ", contour[" << i << "][1] = " << contour[i][1] <<
 										 ", contour[" << i << "][2] = " << contour[i][2] << ", contour[" << i << "][3] = " << contour[i][3] << std::endl;
 			}
 		}
 	}
 
-	cv::drawContours(image_candidates, contour, -1, cv::Scalar(0, 255, 0), 2);
+	cv::drawContours(image_candidates, contour, -1, cv::Scalar(255, 0, 0), 1);
 
 	// Plot intensity and phi of selected line segment
 	std::vector<double> intensity(intensities[index][2].size());
@@ -437,17 +402,17 @@ int main(int argc, char** argv) {
 	std::shared_ptr<cv::line_descriptor::KeyLine> kl = keylinesInContours[index][support_candidates_pos[index]];
 	cv::line(image_candidates, kl->getStartPoint(), kl->getEndPoint(), cv::Scalar(255, 0, 0), 10);
 
-	cv::Point start_point_m30(0, kl->pt.y + kl->pt.x*std::tan(M_PI_2 - kl->angle) - 30);
-	cv::Point start_point_m15(0, kl->pt.y + kl->pt.x*std::tan(M_PI_2 - kl->angle) - 15);
+	cv::Point start_point_m30(0, kl->pt.y + kl->pt.x*std::tan(M_PI_2 - kl->angle) - 16);
+	cv::Point start_point_m15(0, kl->pt.y + kl->pt.x*std::tan(M_PI_2 - kl->angle) - 8);
 	cv::Point start_point_0(0, kl->pt.y + kl->pt.x*std::tan(M_PI_2 - kl->angle));
-	cv::Point start_point_15(0, kl->pt.y + kl->pt.x*std::tan(M_PI_2 - kl->angle) + 15);
-	cv::Point start_point_30(0, kl->pt.y + kl->pt.x*std::tan(M_PI_2 - kl->angle) + 30);
+	cv::Point start_point_15(0, kl->pt.y + kl->pt.x*std::tan(M_PI_2 - kl->angle) + 8);
+	cv::Point start_point_30(0, kl->pt.y + kl->pt.x*std::tan(M_PI_2 - kl->angle) + 16);
 
-	cv::Point end_point_m30(image_greyscale.cols, kl->pt.y - (image_greyscale.cols - kl->pt.x)*std::tan(M_PI_2 - kl->angle) - 30);
-	cv::Point end_point_m15(image_greyscale.cols, kl->pt.y - (image_greyscale.cols - kl->pt.x)*std::tan(M_PI_2 - kl->angle) - 15);
+	cv::Point end_point_m30(image_greyscale.cols, kl->pt.y - (image_greyscale.cols - kl->pt.x)*std::tan(M_PI_2 - kl->angle) - 16);
+	cv::Point end_point_m15(image_greyscale.cols, kl->pt.y - (image_greyscale.cols - kl->pt.x)*std::tan(M_PI_2 - kl->angle) - 8);
 	cv::Point end_point_0(image_greyscale.cols, kl->pt.y - (image_greyscale.cols - kl->pt.x)*std::tan(M_PI_2 - kl->angle));
-	cv::Point end_point_15(image_greyscale.cols, kl->pt.y - (image_greyscale.cols - kl->pt.x)*std::tan(M_PI_2 - kl->angle) + 15);
-	cv::Point end_point_30(image_greyscale.cols, kl->pt.y - (image_greyscale.cols - kl->pt.x)*std::tan(M_PI_2 - kl->angle) + 30);
+	cv::Point end_point_15(image_greyscale.cols, kl->pt.y - (image_greyscale.cols - kl->pt.x)*std::tan(M_PI_2 - kl->angle) + 8);
+	cv::Point end_point_30(image_greyscale.cols, kl->pt.y - (image_greyscale.cols - kl->pt.x)*std::tan(M_PI_2 - kl->angle) + 16);
 
 	cv::line(image_candidates, start_point_m30, end_point_m30, cv::Scalar(0, 255, 0), 2);
 	cv::line(image_candidates, start_point_m15, end_point_m15, cv::Scalar(0, 255, 0), 2);
@@ -460,8 +425,10 @@ int main(int argc, char** argv) {
 	//cv::resizeWindow("Image with candidate segments", 1080, 960);
 	cv::imshow("Image with candidate segments", image_candidates);
 
+	/*
 	cv::imshow("Plot intensity", plot_result_intensity);
 	cv::imshow("Plot phi", plot_result_phi);
+	*/
 
 	cv::waitKey(0);
 
