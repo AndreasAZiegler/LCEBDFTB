@@ -4,6 +4,8 @@ project(LCEBDFTB)
 set(CMAKE_BUILD_TYPE EQUAL "DEBUG")
 find_package(OpenCV 3.2 REQUIRED)
 
+find_package(MathGL REQUIRED)
+
 find_package(OpenMP)
 if (OPENMP_FOUND)
   set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
@@ -12,4 +14,4 @@ if (OPENMP_FOUND)
 endif()
 
 add_executable(barcodelocalizer main.cpp)
-target_link_libraries(barcodelocalizer ${OpenCV_LIBS})
+target_link_libraries(barcodelocalizer ${OpenCV_LIBS} ${MathGL_LIBRARIES})
