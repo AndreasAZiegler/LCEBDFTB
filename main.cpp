@@ -225,8 +225,6 @@ int main(int argc, char** argv) {
 	end = std::chrono::steady_clock::now();
 	std::cout << "Select s_cand: " << std::chrono::duration <double, std::milli> (end - start).count() << " ms" << std::endl;
 
-	cv::imwrite("debug-candidate-segments.jpg", image_candidates);
-
 	// Create vectors of intensities
 	start = std::chrono::steady_clock::now();
 	std::vector<std::vector<cv::Point>> perpencidularLineStartEndPoints(keylinesInContours_size, std::vector<cv::Point>(2));
@@ -319,6 +317,7 @@ int main(int argc, char** argv) {
 			}
 		}
 	}
+	index = 1533;
 	std::cout << "index = " << index << ", size() = " << intensities[index][2].size() << std::endl;
 
 	// Calculate bounding boxes
@@ -330,14 +329,14 @@ int main(int argc, char** argv) {
 			int diff_2 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][1]);
 			int diff_3 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][3]);
 			int diff_4 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][4]);
-			std::cout << "diff_1 = " << diff_1 << ", diff_2 = " << diff_2 << ", diff_3 = " << diff_3 << ", diff_4 = " << diff_4 << std::endl;
 			int angle = 0;
 			int sign = 1;
 			/*
 			if((diff_2 < 4) &&
 				 (diff_3 < 4)) {
 			*/
-			if(15 > diff_1 + diff_2 + diff_3 + diff_4) {
+			if(7 > diff_1 + diff_2 + diff_3 + diff_4) {
+				std::cout << "diff_1 = " << diff_1 << ", diff_2 = " << diff_2 << ", diff_3 = " << diff_3 << ", diff_4 = " << diff_4 << std::endl;
 				std::cout << "Add one bounding box contour!" << std::endl;
 				std::cout << "start_barcode_pos[" << i << "][2] = " << start_barcode_pos[i][2] << " , end_barcode_pos[" << i << "][2] = " << end_barcode_pos[i][2] << ", end_pos = " << phis[i][2].size() << ", angle = " << keylines[i].angle << std::endl;
 				if(0 < keylines[i].angle) {
@@ -356,6 +355,9 @@ int main(int argc, char** argv) {
 																	perpencidularLineStartEndPoints[i][0].y + std::sin(angle)*(end_barcode_pos[i][2]-2500) + keylines[i].lineLength*std::cos(angle)*0.5);
 				contour[i][3] = cv::Point(perpencidularLineStartEndPoints[i][0].x + std::cos(angle)*start_barcode_pos[i][2] + sign*keylines[i].lineLength*std::sin(angle)*0.5,
 																	perpencidularLineStartEndPoints[i][0].y + std::sin(angle)*start_barcode_pos[i][2] + keylines[i].lineLength*std::cos(angle)*0.5);
+
+				//cv::putText(image_candidates, std::to_string(i), keylines[i].pt, cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0));
+				cv::putText(image_candidates, std::to_string(i), contour[i][1], cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0));
 				/*
 				std::cout << "perpencidularLineStartEndPoints[" << i << "][0].x = " << perpencidularLineStartEndPoints[i][0].x << ", perpencidularLineStartEndPoints[" << i << "][0].y = " << perpencidularLineStartEndPoints[i][0].y << std::endl;
 				std::cout << "std::cos(M_PI_2 + keylines[" << i << "].angle)*start_barcode_pos[" << i << "][2] = " << std::cos(M_PI_2 + keylines[i].angle)*start_barcode_pos[i][2] << std::endl;
@@ -371,32 +373,14 @@ int main(int argc, char** argv) {
 	cv::drawContours(image_candidates, contour, -1, cv::Scalar(255, 0, 0), 1);
 
 	// Plot intensity and phi of selected line segment
-	std::vector<double> intensity(intensities[index][2].size());
-	std::vector<double> phi(phis[index][2].size());
-	for(int i = 0; i < intensities[index][2].size(); i++) {
-		intensity[i] = static_cast<double>(intensities[index][2][i]);
-		phi[i] = static_cast<double>(phis[index][2][i]);
+	std::vector<std::vector<double>> intensity(5, std::vector<double>(intensities[index][2].size()));
+	std::vector<std::vector<double>> phi(5, std::vector<double>(phis[index][2].size()));
+	for(int j = 0; j < 5; j++) {
+		for(int i = 0; i < intensities[index][2].size(); i++) {
+			intensity[j][i] = static_cast<double>(intensities[index][j][i]);
+			phi[j][i] = static_cast<double>(phis[index][j][i]);
+		}
 	}
-
-	cv::Mat data_intensity(intensities[index][2].size(), 1, CV_64F);
-	cv::Mat data_phi(phis[index][2].size(), 1, CV_64F);
-	//cv::randu(data, 0, 500);
-	memcpy(data_intensity.data, intensity.data(), intensity.size()*sizeof(double));
-	memcpy(data_phi.data, phi.data(), phi.size()*sizeof(double));
-
-	cv::Mat plot_result_intensity;
-	cv::Mat plot_result_phi;
-
-	cv::Ptr<cv::plot::Plot2d> plot_intensity = cv::plot::createPlot2d(data_intensity);
-	plot_intensity->setPlotBackgroundColor(cv::Scalar(50, 50, 50));
-	plot_intensity->setPlotLineColor(cv::Scalar(50, 50, 255));
-	plot_intensity->render(plot_result_intensity);
-
-	cv::Ptr<cv::plot::Plot2d> plot_phi = cv::plot::createPlot2d(data_phi);
-	plot_phi->setPlotBackgroundColor(cv::Scalar(50, 50, 50));
-	plot_phi->setPlotLineColor(cv::Scalar(50, 50, 255));
-	plot_phi->render(plot_result_phi);
-
 
 	// Draw line segment and perpendicular line
 	std::shared_ptr<cv::line_descriptor::KeyLine> kl = keylinesInContours[index][support_candidates_pos[index]];
@@ -425,6 +409,8 @@ int main(int argc, char** argv) {
 	//cv::resizeWindow("Image with candidate segments", 1080, 960);
 	cv::imshow("Image with candidate segments", image_candidates);
 
+	cv::imwrite("debug-candidate-segments.jpg", image_candidates);
+
 	/*
 	cv::imshow("Plot intensity", plot_result_intensity);
 	cv::imshow("Plot phi", plot_result_phi);
@@ -432,21 +418,41 @@ int main(int argc, char** argv) {
 
 	cv::waitKey(0);
 
-	mglGraph gr;
-	mglData y;
+	mglGraph gr_int;
+	mglGraph gr_phi;
+	std::vector<mglData> mgl_phi(5);
+	std::vector<mglData> mgl_intensities(5);
 
 	//mgls_prepare1d(&y);
-	y.Set(phi.data(), phi.size());
-	gr.SetOrigin(0,0,0);
-	//gr.SubPlot(2,2,0,"");
-	gr.Title("Plot plot (default)");
-	gr.SetRanges(0, 1121, -5000, 5000);
-	//gr.SetRanges(0, 3320, -5000, 5000);
-	gr.Box();
-	gr.Axis();
-	gr.Grid();
-	gr.Plot(y);
-	gr.WriteFrame("plot.png");
+	for(int i = 0; i < 5; i++) {
+		mgl_phi[i].Set(phi[i].data(), phi[i].size());
+		mgl_intensities[i].Set(intensity[i].data(), intensity[i].size());
+
+
+		gr_phi.SubPlot(1, 5, i);
+		std::string str = "Phi " + std::to_string(i);
+		gr_phi.Title(str.c_str());
+		gr_phi.SetOrigin(0,0,0);
+		gr_phi.SetRanges(0, phis[index][2].size(), -5000, 5000);
+		gr_phi.Axis();
+		gr_phi.Grid();
+		gr_phi.Plot(mgl_phi[i]);
+
+		gr_int.SubPlot(1, 5, i);
+		str = "Intensities" + std::to_string(i);
+		gr_int.Title(str.c_str());
+		gr_int.SetOrigin(0,0,0);
+		gr_int.SetRanges(0, phis[index][2].size(), 0, 300);
+		//gr.SetRanges(0, 3320, -5000, 5000);
+		gr_int.Axis();
+		gr_int.Grid();
+		gr_int.Plot(mgl_intensities[i]);
+	}
+
+
+	//gr.Box();
+	gr_int.WriteFrame("plot-intensities.png");
+	gr_phi.WriteFrame("plot-phi.png");
 
 	return(0);
 }
