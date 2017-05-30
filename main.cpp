@@ -84,9 +84,11 @@ int main(int argc, char** argv) {
 	std::cout << "Number of bounding boxes: " << contours.size() << std::endl;
 
 	cv::imwrite("debug-line-segments.jpg", image_lines);
+	/*
 	cv::namedWindow("Image with line segments", cv::WINDOW_NORMAL);
 	cv::resizeWindow("Image with line segments", 600, 600);
 	cv::imshow("Image with line segments", image_lines);
+	*/
 
 	std::vector<std::vector<bool>> lookup2d(contours.size(), std::vector<bool>(keylines.size()));
 
@@ -165,17 +167,18 @@ int main(int argc, char** argv) {
 				diff_length = std::abs(kl_j->lineLength - kl_k->lineLength);
 				//diff_length_vec.push_back(diff_length);
 
-				if((diff_length) < 5.0) {
+				//if((diff_length) < 5.0) {
+				if((diff_length) < 20.0) {
 					diff_angle = std::abs(kl_j->angle - kl_k->angle);
 					//diff_angle_vec.push_back(diff_angle);
 
 					//if((diff_angle) < 3.0) {
-					if((diff_angle) < 4.0) {
+					if((diff_angle) < 0.5) {
 						diff_norm_pt = cv::norm(kl_j->pt - kl_k->pt);
 						//diff_norm_pt_vec.push_back(diff_norm_pt);
 
 						//if((diff_norm_pt) < 25.0) {
-						if((diff_norm_pt) < 500.0) {
+						if((diff_norm_pt) < 400.0) {
 							/*
 							std::cout << "Under the thresholds" << std::endl;
 							std::cout << "diff_angle = " << diff_angle << ", diff_length = " << diff_length << ", diff_norm_pt = " << diff_norm_pt << std::endl;
@@ -324,7 +327,7 @@ int main(int argc, char** argv) {
 			}
 		}
 	}
-	index = 14925;
+	index = 15168;
 	std::cout << "index = " << index << ", size() = " << intensities[index][2].size() << std::endl;
 
 	// Calculate bounding boxes
@@ -416,16 +419,18 @@ int main(int argc, char** argv) {
 
 	cv::imwrite("debug-candidate-segments.jpg", image_candidates);
 
+	/*
 	cv::namedWindow("Image with candidate segments", cv::WINDOW_NORMAL);
 	//cv::resizeWindow("Image with candidate segments", 1080, 960);
 	cv::imshow("Image with candidate segments", image_candidates);
+	*/
 
 	/*
 	cv::imshow("Plot intensity", plot_result_intensity);
 	cv::imshow("Plot phi", plot_result_phi);
 	*/
 
-	cv::waitKey(0);
+	//cv::waitKey(0);
 
 	mglGraph gr_int;
 	mglGraph gr_phi;
