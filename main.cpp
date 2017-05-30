@@ -66,13 +66,13 @@ int main(int argc, char** argv) {
 		float end_y = kl.endPointY;
 
 		std::vector<cv::Point> contour;
-		contour.push_back(cv::Point2f(start_x - linelength*sin_angle, start_y - linelength*cos_angle));
-		contour.push_back(cv::Point2f(start_x + linelength*sin_angle, start_y + linelength*cos_angle));
-		contour.push_back(cv::Point2f(end_x + linelength*sin_angle, end_y + linelength*cos_angle));
-		contour.push_back(cv::Point2f(end_x + linelength*sin_angle, end_y + linelength*cos_angle));
-		contour.push_back(cv::Point2f(end_x - linelength*sin_angle, end_y - linelength*cos_angle));
-		contour.push_back(cv::Point2f(end_x - linelength*sin_angle, end_y - linelength*cos_angle));
-		contour.push_back(cv::Point2f(start_x - linelength*sin_angle, start_y - linelength*cos_angle));
+		contour.push_back(cv::Point2f(start_x - 2*linelength*sin_angle, start_y - 0.5*linelength*cos_angle));
+		contour.push_back(cv::Point2f(start_x + 2*linelength*sin_angle, start_y + 0.5*linelength*cos_angle));
+		contour.push_back(cv::Point2f(end_x + 2*linelength*sin_angle, end_y + 0.5*linelength*cos_angle));
+		contour.push_back(cv::Point2f(end_x + 2*linelength*sin_angle, end_y + 0.5*linelength*cos_angle));
+		contour.push_back(cv::Point2f(end_x - 2*linelength*sin_angle, end_y - 0.5*linelength*cos_angle));
+		contour.push_back(cv::Point2f(end_x - 2*linelength*sin_angle, end_y - 0.5*linelength*cos_angle));
+		contour.push_back(cv::Point2f(start_x - 2*linelength*sin_angle, start_y - 0.5*linelength*cos_angle));
 		contours.push_back(contour);
 		lookup.push_back(kl.pt);
 	}
@@ -217,7 +217,7 @@ int main(int argc, char** argv) {
 		//std::cout << "max_support_candidates[" << i << "] = " << support_candidates[i] << std::endl;
 		//std::cout << "min_support_candidates[" << i << "] = " << support_scores[i][std::distance(support_scores[i].begin(), std::min_element(support_scores[i].begin(), support_scores[i].end()))] << std::endl;
 
-		if(0 < support_candidates[i]) {
+		if(3 < support_candidates[i]) {
 			std::shared_ptr<cv::line_descriptor::KeyLine> kl = keylinesInContours[i][support_candidates_pos[i]];
 			cv::line(image_candidates, kl->getStartPoint(), kl->getEndPoint(), cv::Scalar(0, 0, 255));
 		}
@@ -230,7 +230,7 @@ int main(int argc, char** argv) {
 	std::vector<std::vector<cv::Point>> perpencidularLineStartEndPoints(keylinesInContours_size, std::vector<cv::Point>(2));
 	std::vector<std::vector<std::vector<uchar>>> intensities(keylinesInContours_size, std::vector<std::vector<uchar>>(5));
 	for(int i = 0; i < intensities.size(); i++) {
-		if(0 < support_candidates[i]) {
+		if(3 < support_candidates[i]) {
 			std::shared_ptr<cv::line_descriptor::KeyLine> kl = keylinesInContours[i][support_candidates_pos[i]];
 			std::vector<cv::Point> pt1s;
 			pt1s.push_back(cv::Point(0, kl->pt.y + kl->pt.x*std::tan(M_PI_2 - kl->angle) - 16));
@@ -272,27 +272,32 @@ int main(int argc, char** argv) {
 	std::vector<std::vector<int>> start_barcode_pos(keylinesInContours_size, std::vector<int>(5));
 	std::vector<std::vector<int>> end_barcode_pos(keylinesInContours_size, std::vector<int>(5));
 
+	#pragma omp parallel for
 	for(int i = 0; i < intensities.size(); i++) {
-		for(int j = 0; j < intensities[i].size(); j++) {
-			phis[i][j] = std::vector<int>(intensities[i][j].size());
-			int max = 0;
-			int min = 0;
-			for(int k = 0; k < intensities[i][j].size(); k++) {
-				int phi_1 = 0;
-				int phi_2 = 0;
-				for(int l = 0; l < 150; l++) {
-					phi_1 += std::abs(intensities[i][j][k - l] - intensities[i][j][k - l - 1]);
-					phi_2 += std::abs(intensities[i][j][k + l] - intensities[i][j][k + l + 1]);
-				}
-				phis[i][j][k] = phi_1 - phi_2;
+		if(3 < support_candidates[i]) {
+			#pragma omp parallel for
+			for(int j = 0; j < intensities[i].size(); j++) {
+				phis[i][j] = std::vector<int>(intensities[i][j].size());
+				int max = 0;
+				int min = 0;
+				#pragma omp parallel for
+				for(int k = 0; k < intensities[i][j].size(); k++) {
+					int phi_1 = 0;
+					int phi_2 = 0;
+					for(int l = 0; l < 150; l++) {
+						phi_1 += std::abs(intensities[i][j][k - l] - intensities[i][j][k - l - 1]);
+						phi_2 += std::abs(intensities[i][j][k + l] - intensities[i][j][k + l + 1]);
+					}
+					phis[i][j][k] = phi_1 - phi_2;
 
-				if(phis[i][j][k] > max) {
-					max = phis[i][j][k];
-					end_barcode_pos[i][j] = k;
-				}
-				if(phis[i][j][k] < min) {
-					min = phis[i][j][k];
-					start_barcode_pos[i][j] = k;
+					if(phis[i][j][k] > max) {
+						max = phis[i][j][k];
+						end_barcode_pos[i][j] = k;
+					}
+					if(phis[i][j][k] < min) {
+						min = phis[i][j][k];
+						start_barcode_pos[i][j] = k;
+					}
 				}
 			}
 		}
@@ -317,25 +322,23 @@ int main(int argc, char** argv) {
 			}
 		}
 	}
-	index = 13201;
+	index = 13489;
 	std::cout << "index = " << index << ", size() = " << intensities[index][2].size() << std::endl;
 
 	// Calculate bounding boxes
 	std::vector<std::vector<cv::Point>> contour(keylinesInContours_size, std::vector<cv::Point>(4));
 	for(int i = 0; i < keylinesInContours_size; i++) {
-		if(0 < support_candidates[i]) {
+		if(3 < support_candidates[i]) {
 		//if(i == index) {
 			int diff_1 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][0]);
 			int diff_2 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][1]);
 			int diff_3 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][3]);
 			int diff_4 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][4]);
-			double angle = -(M_PI_2 - keylines[i].angle);
+			float angle = (M_PI_2 - keylines[i].angle);
 			int sign = 1;
-			/*
-			if((diff_2 < 4) &&
-				 (diff_3 < 4)) {
-			*/
-			if(5 > diff_1 + diff_2 + diff_3 + diff_4) {
+			//if(50 > diff_1 + diff_2 + diff_3 + diff_4) {
+			if(true) {
+				std::cout << "support_candidates[" << i << "] = " << support_candidates[i] << std::endl;
 				std::cout << "diff_1 = " << diff_1 << ", diff_2 = " << diff_2 << ", diff_3 = " << diff_3 << ", diff_4 = " << diff_4 << std::endl;
 				std::cout << "Add one bounding box contour!" << std::endl;
 				std::cout << "start_barcode_pos[" << i << "][2] = " << start_barcode_pos[i][2] << " , end_barcode_pos[" << i << "][2] = " << end_barcode_pos[i][2] << ", end_pos = " << phis[i][2].size() << ", angle = " << 180*angle/M_PI << std::endl;
@@ -350,13 +353,13 @@ int main(int argc, char** argv) {
 				*/
 
 				contour[i][0] = cv::Point(perpencidularLineStartEndPoints[i][0].x + std::cos(angle)*start_barcode_pos[i][2] - keylines[i].lineLength*std::sin(angle)*0.5,
-																	perpencidularLineStartEndPoints[i][0].y + std::sin(angle)*start_barcode_pos[i][2] - keylines[i].lineLength*std::cos(angle)*0.5);
+																	perpencidularLineStartEndPoints[i][0].y - std::sin(angle)*start_barcode_pos[i][2] - keylines[i].lineLength*std::cos(angle)*0.5);
 				contour[i][1] = cv::Point(perpencidularLineStartEndPoints[i][0].x + std::cos(angle)*end_barcode_pos[i][2] - keylines[i].lineLength*std::sin(angle)*0.5,
-																	perpencidularLineStartEndPoints[i][0].y + std::sin(angle)*end_barcode_pos[i][2] - keylines[i].lineLength*std::cos(angle)*0.5);
+																	perpencidularLineStartEndPoints[i][0].y - std::sin(angle)*end_barcode_pos[i][2] - keylines[i].lineLength*std::cos(angle)*0.5);
 				contour[i][2] = cv::Point(perpencidularLineStartEndPoints[i][0].x + std::cos(angle)*end_barcode_pos[i][2] + keylines[i].lineLength*std::sin(angle)*0.5,
-																	perpencidularLineStartEndPoints[i][0].y + std::sin(angle)*end_barcode_pos[i][2] + keylines[i].lineLength*std::cos(angle)*0.5);
+																	perpencidularLineStartEndPoints[i][0].y - std::sin(angle)*end_barcode_pos[i][2] + keylines[i].lineLength*std::cos(angle)*0.5);
 				contour[i][3] = cv::Point(perpencidularLineStartEndPoints[i][0].x + std::cos(angle)*start_barcode_pos[i][2] + keylines[i].lineLength*std::sin(angle)*0.5,
-																	perpencidularLineStartEndPoints[i][0].y + std::sin(angle)*start_barcode_pos[i][2] + keylines[i].lineLength*std::cos(angle)*0.5);
+																	perpencidularLineStartEndPoints[i][0].y - std::sin(angle)*start_barcode_pos[i][2] + keylines[i].lineLength*std::cos(angle)*0.5);
 
 				//cv::putText(image_candidates, std::to_string(i), keylines[i].pt, cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0));
 				cv::putText(image_candidates, std::to_string(i), contour[i][0], cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0));
@@ -365,14 +368,13 @@ int main(int argc, char** argv) {
 				std::cout << "std::cos(M_PI_2 + keylines[" << i << "].angle)*start_barcode_pos[" << i << "][2] = " << std::cos(M_PI_2 + keylines[i].angle)*start_barcode_pos[i][2] << std::endl;
 				std::cout << "std::sin(M_PI_2 + keylines[" << i << "].angle)*start_barcode_pos[" << i << "][2] = " << std::sin(M_PI_2 + keylines[i].angle)*start_barcode_pos[i][2] << std::endl;
 				*/
-				std::cout << "keylines[" << i << "].lineLength*std::sin(M_PI_2 + keylines[" << i << "].angle)*0.5 = " << keylines[i].lineLength*std::sin(M_PI_2 + keylines[i].angle)*0.5 << ", keylines[" << i << "].lineLength*std::cos(M_PI_2 + keylines[" << i << "].angle)*0.5 = " << keylines[i].lineLength*std::cos(M_PI_2 + keylines[i].angle)*0.5 << std::endl;
 				std::cout << "contour[" << i << "][0] = " << contour[i][0] << ", contour[" << i << "][1] = " << contour[i][1] <<
 										 ", contour[" << i << "][2] = " << contour[i][2] << ", contour[" << i << "][3] = " << contour[i][3] << std::endl;
 			}
 		}
 	}
 
-	cv::drawContours(image_candidates, contour, -1, cv::Scalar(255, 0, 0), 10);
+	cv::drawContours(image_candidates, contour, -1, cv::Scalar(255, 0, 0), 1);
 
 	// Plot intensity and phi of selected line segment
 	std::vector<std::vector<double>> intensity(5, std::vector<double>(intensities[index][2].size()));
@@ -406,12 +408,11 @@ int main(int argc, char** argv) {
 	cv::line(image_candidates, start_point_15, end_point_15, cv::Scalar(0, 255, 0), 2);
 	cv::line(image_candidates, start_point_30, end_point_30, cv::Scalar(0, 255, 0), 2);
 
+	cv::imwrite("debug-candidate-segments.jpg", image_candidates);
 
 	cv::namedWindow("Image with candidate segments", cv::WINDOW_NORMAL);
 	//cv::resizeWindow("Image with candidate segments", 1080, 960);
 	cv::imshow("Image with candidate segments", image_candidates);
-
-	cv::imwrite("debug-candidate-segments.jpg", image_candidates);
 
 	/*
 	cv::imshow("Plot intensity", plot_result_intensity);
