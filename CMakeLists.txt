@@ -1,7 +1,10 @@
 cmake_minimum_required(VERSION 2.8)
+
+SET(CMAKE_BUILD_TYPE Debug)
 project(LCEBDFTB)
 
-set(CMAKE_BUILD_TYPE EQUAL "DEBUG")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall")
+
 find_package(OpenCV 3.2 REQUIRED)
 
 find_package(MathGL REQUIRED)
