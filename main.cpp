@@ -52,29 +52,46 @@ int main(int argc, char** argv) {
 	std::cout << "Number of lines detected: " << keylines.size() << std::endl;
 
 	start = std::chrono::steady_clock::now();
-	for(cv::line_descriptor::KeyLine kl : keylines) {
-		cv::line(image_lines, kl.getStartPoint(), kl.getEndPoint(), cv::Scalar(255, 0, 0));
-		//std::vector<cv::Point2f> point = {kl.getStartPoint(), kl.getEndPoint()};
+	//for(cv::line_descriptor::KeyLine kl : keylines) {
+	for (auto it = keylines.begin(); it != keylines.end();) {
+		auto kl = *it;
+		if(30 < kl.lineLength) {
+			cv::line(image_lines, kl.getStartPoint(), kl.getEndPoint(), cv::Scalar(255, 0, 0));
+			//std::vector<cv::Point2f> point = {kl.getStartPoint(), kl.getEndPoint()};
 
-		float linelength = kl.lineLength;
-		float angle = kl.angle;
-		float cos_angle = std::cos(angle);
-		float sin_angle = std::sin(angle);
-		float start_x = kl.startPointX;
-		float start_y = kl.startPointY;
-		float end_x = kl.endPointX;
-		float end_y = kl.endPointY;
+			float linelength = kl.lineLength;
+			float angle = kl.angle;
+			float cos_angle = std::abs(std::cos(angle));
+			float sin_angle = std::abs(std::sin(angle));
+			float start_x;
+			float start_y;
+			float end_x;
+			float end_y;
+			if(kl.startPointY > kl.endPointY) {
+				start_x = kl.startPointX;
+				start_y = kl.startPointY;
+				end_x = kl.endPointX;
+				end_y = kl.endPointY;
+			} else {
+				start_x = kl.endPointX;
+				start_y = kl.endPointY;
+				end_x = kl.startPointX;
+				end_y = kl.startPointY;
+			}
 
-		std::vector<cv::Point> contour;
-		contour.push_back(cv::Point2f(start_x - 2*linelength*sin_angle, start_y - 0.5*linelength*cos_angle));
-		contour.push_back(cv::Point2f(start_x + 2*linelength*sin_angle, start_y + 0.5*linelength*cos_angle));
-		contour.push_back(cv::Point2f(end_x + 2*linelength*sin_angle, end_y + 0.5*linelength*cos_angle));
-		contour.push_back(cv::Point2f(end_x + 2*linelength*sin_angle, end_y + 0.5*linelength*cos_angle));
-		contour.push_back(cv::Point2f(end_x - 2*linelength*sin_angle, end_y - 0.5*linelength*cos_angle));
-		contour.push_back(cv::Point2f(end_x - 2*linelength*sin_angle, end_y - 0.5*linelength*cos_angle));
-		contour.push_back(cv::Point2f(start_x - 2*linelength*sin_angle, start_y - 0.5*linelength*cos_angle));
-		contours.push_back(contour);
-		lookup.push_back(kl.pt);
+			std::vector<cv::Point> contour;
+			contour.push_back(cv::Point2f(start_x - 2*linelength*sin_angle, start_y + 3.0*linelength*cos_angle));
+			contour.push_back(cv::Point2f(start_x + 2*linelength*sin_angle, start_y + 3.0*linelength*cos_angle));
+			contour.push_back(cv::Point2f(end_x + 2*linelength*sin_angle, end_y - 3.0*linelength*cos_angle));
+			contour.push_back(cv::Point2f(end_x - 2*linelength*sin_angle, end_y - 3.0*linelength*cos_angle));
+			contour.push_back(cv::Point2f(start_x - 2*linelength*sin_angle, start_y + 3.0*linelength*cos_angle));
+			contours.push_back(contour);
+			lookup.push_back(kl.pt);
+
+			++it;
+		} else {
+			keylines.erase(it);
+		}
 	}
 	end = std::chrono::steady_clock::now();
 	std::cout << "Creating bounding boxes: " << std::chrono::duration <double, std::milli> (end - start).count() << " ms" << std::endl;
@@ -167,13 +184,13 @@ int main(int argc, char** argv) {
 				diff_length = std::abs(kl_j->lineLength - kl_k->lineLength);
 				//diff_length_vec.push_back(diff_length);
 
-				//if((diff_length) < 5.0) {
-				if((diff_length) < 20.0) {
+				//if((diff_length) < 10.0) {
+				if((diff_length) < 4.0) {
 					diff_angle = std::abs(kl_j->angle - kl_k->angle);
 					//diff_angle_vec.push_back(diff_angle);
 
 					//if((diff_angle) < 3.0) {
-					if((diff_angle) < 0.5) {
+					if((diff_angle) < 0.26) {
 						diff_norm_pt = cv::norm(kl_j->pt - kl_k->pt);
 						//diff_norm_pt_vec.push_back(diff_norm_pt);
 
@@ -222,7 +239,7 @@ int main(int argc, char** argv) {
 		//std::cout << "max_support_candidates[" << i << "] = " << support_candidates[i] << std::endl;
 		//std::cout << "min_support_candidates[" << i << "] = " << support_scores[i][std::distance(support_scores[i].begin(), std::min_element(support_scores[i].begin(), support_scores[i].end()))] << std::endl;
 
-		if(4 < support_candidates[i]) {
+		if(7 < support_candidates[i]) {
 			std::shared_ptr<cv::line_descriptor::KeyLine> kl = keylinesInContours[i][support_candidates_pos[i]];
 			cv::line(image_candidates, kl->getStartPoint(), kl->getEndPoint(), cv::Scalar(0, 0, 255));
 		}
@@ -235,7 +252,7 @@ int main(int argc, char** argv) {
 	std::vector<std::vector<cv::Point>> perpencidularLineStartEndPoints(keylinesInContours_size, std::vector<cv::Point>(2));
 	std::vector<std::vector<std::vector<uchar>>> intensities(keylinesInContours_size, std::vector<std::vector<uchar>>(5));
 	for(int i = 0; i < intensities.size(); i++) {
-		if(4 < support_candidates[i]) {
+		if(7 < support_candidates[i]) {
 			std::shared_ptr<cv::line_descriptor::KeyLine> kl = keylinesInContours[i][support_candidates_pos[i]];
 			std::vector<cv::Point> pt1s;
 			pt1s.push_back(cv::Point(0, kl->pt.y + kl->pt.x*std::tan(M_PI_2 - kl->angle) - 16));
@@ -279,7 +296,7 @@ int main(int argc, char** argv) {
 
 	#pragma omp parallel for
 	for(int i = 0; i < intensities.size(); i++) {
-		if(4 < support_candidates[i]) {
+		if(7 < support_candidates[i]) {
 			#pragma omp parallel for
 			for(int j = 0; j < intensities[i].size(); j++) {
 				phis[i][j] = std::vector<int>(intensities[i][j].size());
@@ -327,14 +344,14 @@ int main(int argc, char** argv) {
 			}
 		}
 	}
-	index = 15168;
+	index = 3056;
 	std::cout << "index = " << index << ", size() = " << intensities[index][2].size() << std::endl;
 
 	// Calculate bounding boxes
 	std::vector<std::vector<cv::Point>> contour(keylinesInContours_size, std::vector<cv::Point>(4));
 	for(int i = 0; i < keylinesInContours_size; i++) {
 		int length = end_barcode_pos[i][2] - start_barcode_pos[i][2];
-		if(4 < support_candidates[i]) {
+		if(7 < support_candidates[i]) {
 		//if(i == index) {
 			if((0 < length) && ((length / keylines[i].lineLength) < 10)) {
 				int diff_1 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][0]);
