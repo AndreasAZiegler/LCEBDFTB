@@ -323,26 +323,46 @@ int main(int argc, char** argv) {
 	std::vector<std::vector<int>> start_barcode_pos(keylinesInContours_size, std::vector<int>(5));
 	std::vector<std::vector<int>> end_barcode_pos(keylinesInContours_size, std::vector<int>(5));
 
-	//#pragma omp parallel for
+	/**
+		* @todo Only calculate phi with intensities != 0
+		*/
+	#pragma omp parallel for
 	for(unsigned int i = 0; i < intensities.size(); i++) {
 		if(7 < support_candidates[i]) {
-			//#pragma omp parallel for
+			#pragma omp parallel for
 			for(unsigned int j = 0; j < intensities[i].size(); j++) {
 				phis[i][j] = std::vector<int>(intensities[i][j].size());
 				int max = 0;
 				int min = 0;
-				//#pragma omp parallel for
-				for(int k = 0; k < intensities[i][j].size(); k++) {
+				#pragma omp parallel for
+				for(int k = 0; k < static_cast<int>(intensities[i][j].size()); k++) {
 					int phi_1 = 0;
 					int phi_2 = 0;
-					for(int l = 0; l < 150; l++) {
-						if(0 < (k - l - 1)) {
-							phi_1 += std::abs(intensities[i][j][k - l] - intensities[i][j][k - l - 1]);
-						}
-						if(intensities[i][j].size() > (k + l + 1)) {
-							phi_2 += std::abs(intensities[i][j][k + l] - intensities[i][j][k + l + 1]);
-						}
+
+					int lt = 0;
+					if(0 <= (k - 150 -1)) {
+						lt = k - 150 - 1;
+					} else {
+						lt = 0;
 					}
+
+					#pragma omp parallel for
+					for(int l = lt; l < k; l++) {
+						phi_1 += std::abs(intensities[i][j][l + 1] - intensities[i][j][l]);
+					}
+
+					int end;
+					if(intensities[i][j].size() > (k + 150 + 1)) {
+						end = k + 150 + 1;
+					} else {
+						end = intensities[i][j].size();
+					}
+
+					#pragma omp parallel for
+					for(int l = k; l < end; l++) {
+						phi_2 += std::abs(intensities[i][j][l] - intensities[i][j][l + 1]);
+					}
+
 					phis[i][j][k] = phi_1 - phi_2;
 
 					if(phis[i][j][k] > max) {
