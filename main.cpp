@@ -187,70 +187,90 @@ void createVectorsOfIntensities(std::vector<int> &support_candidates,
 																int image_cols,
 																int intensities_size,
 																int support_candidates_threshold) {
+	float angle;
+	float kl_pt_x;
+	float kl_pt_y;
+	register float temp_0;
+	float temp_1;
+	int temp_start;
+	int temp_end;
+	std::vector<cv::Point> pt1s(6);
+	register float temp_2;
+	std::vector<cv::Point> pt2s(6);
+	int intensities_i_size;
+	int start_pixel;
+	int end_pixel;
+	int start;
+	int end;
+	int lineIterators_size;
+
 	for(int i = 0; i < intensities_size; i++) {
 		if(support_candidates_threshold < support_candidates[i]) {
 			std::shared_ptr<cv::line_descriptor::KeyLine> kl = keylinesInContours[i][support_candidates_pos[i]];
 
-			float angle = kl->angle;
+			angle = kl->angle;
 			if(0 < angle) {
 				angle	= (M_PI_2 - angle);
 			} else {
 				angle = -(M_PI_2 - std::abs(angle));
 			}
 
-			auto kl_pt_y = kl->pt.y;
-			auto kl_pt_x = kl->pt.x;
+			kl_pt_y = kl->pt.y;
+			kl_pt_x = kl->pt.x;
 
-			register float temp_0= kl_pt_y + kl_pt_x*std::tan(angle);
+			temp_0= kl_pt_y + kl_pt_x*std::tan(angle);
 
-			std::vector<cv::Point> pt1s(5);
-			pt1s[0] = (cv::Point(0, temp_0 - 16));
-			pt1s[1] = (cv::Point(0, temp_0 - 8));
-			pt1s[2] = (cv::Point(0, temp_0));
-			pt1s[3] = (cv::Point(0, temp_0 + 8));
-			pt1s[4] = (cv::Point(0, temp_0 + 16));
+			temp_1 = 600*std::cos(angle);
+			temp_start = kl_pt_x - temp_1;
+			temp_end = kl_pt_x + temp_1;
+			startStopIntensitiesPosition[i][0] = temp_start;
+			startStopIntensitiesPosition[i][1] = temp_end;
 
-			float temp_1 = 600*std::cos(angle);
-			startStopIntensitiesPosition[i][0] = kl_pt_x - temp_1;
-			startStopIntensitiesPosition[i][1] = kl_pt_x + temp_1;
+			pt1s[0] = (cv::Point(temp_start, temp_0 - 16));
+			pt1s[1] = (cv::Point(temp_start, temp_0 - 8));
+			pt1s[2] = (cv::Point(temp_start, temp_0));
+			pt1s[3] = (cv::Point(temp_start, temp_0 + 8));
+			pt1s[4] = (cv::Point(temp_start, temp_0 + 16));
+			pt1s[5] = cv::Point(0, temp_0);
 
-			register float temp_2 = kl_pt_y - (image_cols - kl_pt_x)*std::tan(angle);
+			temp_2 = kl_pt_y - (image_cols - kl_pt_x)*std::tan(angle);
 
-			std::vector<cv::Point> pt2s(5);
-			pt2s[0] = (cv::Point(image_cols, temp_2 - 16));
-			pt2s[1] = (cv::Point(image_cols, temp_2 - 8));
-			pt2s[2] = (cv::Point(image_cols, temp_2));
-			pt2s[3] = (cv::Point(image_cols, temp_2 + 8));
-			pt2s[4] = (cv::Point(image_cols, temp_2 + 16));
-
+			pt2s[0] = (cv::Point(temp_end, temp_2 - 16));
+			pt2s[1] = (cv::Point(temp_end, temp_2 - 8));
+			pt2s[2] = (cv::Point(temp_end, temp_2));
+			pt2s[3] = (cv::Point(temp_end, temp_2 + 8));
+			pt2s[4] = (cv::Point(temp_end, temp_2 + 16));
+			pt2s[5] = cv::Point(image_cols, temp_2);
 
 			perpendidularLineStartEndPoints[i][0] = cv::Point(0, temp_0);
 			perpendidularLineStartEndPoints[i][1] = cv::Point(image_cols, temp_2);
 
+
+			intensities_i_size = intensities[i].size();
 			std::vector<cv::LineIterator> lineIterators;
-			int intensities_i_size = intensities[i].size();
-			for(unsigned int j = 0; j < intensities_i_size; j++) {
+			for(int j = 0; j < intensities_i_size; j++) {
 				lineIterators.push_back(cv::LineIterator(image_greyscale, pt1s[j], pt2s[j], 8, true));
 				//cv::line(image_candidates, pt1s[j], pt2s[j], cv::Scalar(0, 255, 0), 1);
 			}
 
-			int lineIterators_size = lineIterators.size();
-			for(unsigned int j = 0; j < lineIterators_size; j++) {
-				int lineIterators_j_count = lineIterators[j].count;
-				intensities[i][j] = std::vector<uchar>(lineIterators_j_count);
+			start_pixel = startStopIntensitiesPosition[i][0];
+			end_pixel = startStopIntensitiesPosition[i][1];
 
-				for(int k = 0; k < lineIterators_j_count; k++, ++lineIterators[j]) {
-					//std::cout << "Angle = " << 180*angle/M_PI << std::endl;
-					//std::cout << "Start taking intensities at: " << startStopIntensitiesPosition[i][0] << std::endl;
-					//std::cout << "End taking intensities at: " << startStopIntensitiesPosition[i][1] << std::endl;
-					//std::cout << "pos.x: " << lineIterators[j].pos().x << std::endl;
+			for(start = 0; start_pixel > lineIterators[5].pos().x; ++lineIterators[5], start++);
+			for(end = start; end_pixel > lineIterators[5].pos().x; ++lineIterators[5], end++);
 
-					if((startStopIntensitiesPosition[i][0] < lineIterators[j].pos().x) &&
-						 (startStopIntensitiesPosition[i][1] > lineIterators[j].pos().x)) {
+			lineIterators_size = lineIterators.size();
+			for(int j = 0; j < lineIterators_size; j++) {
+				int lineIterators_5_count = lineIterators[5].count;
+				intensities[i][j] = std::vector<uchar>(lineIterators_5_count);
+
+				for(uchar &intensity : intensities[i][j]) {
+					intensity = 0;
+				}
+
+
+				for(int k = start; k < end; k++, ++lineIterators[j]) {
 						intensities[i][j][k] = image_greyscale.at<uchar>(lineIterators[j].pos());
-					} else {
-						intensities[i][j][k] = 0;
-					}
 				}
 			}
 		}
@@ -331,21 +351,20 @@ int main(int argc, char** argv) {
 	std::cout << "Calculate support scores: " << std::chrono::duration <double, std::milli> (end - start).count() << " ms" << std::endl;
 
 	// Select s_cand
+	start = std::chrono::steady_clock::now();
 
 	std::vector<int> support_candidates(keylinesInContours_size);
 	std::vector<int> support_candidates_pos(keylinesInContours_size);
-
 	cv::Mat image_candidates;
 	image_color.copyTo(image_candidates);
 
-	start = std::chrono::steady_clock::now();
 	selectSCand(support_scores, support_candidates, support_candidates_pos, keylinesInContours, image_candidates, keylinesInContours_size);
 	end = std::chrono::steady_clock::now();
 	std::cout << "Select s_cand: " << std::chrono::duration <double, std::milli> (end - start).count() << " ms" << std::endl;
 
 	// Create vectors of intensities
 	std::vector<std::vector<cv::Point>> perpendidularLineStartEndPoints(keylinesInContours_size, std::vector<cv::Point>(2));
-	std::vector<std::vector<std::vector<uchar>>> intensities(keylinesInContours_size, std::vector<std::vector<uchar>>(5));
+	std::vector<std::vector<std::vector<uchar>>> intensities(keylinesInContours_size, std::vector<std::vector<uchar>>(6));
 	std::vector<std::vector<int>> startStopIntensitiesPosition(keylinesInContours_size, std::vector<int>(2));
 
 	int intensities_size = intensities.size();
@@ -376,15 +395,15 @@ int main(int argc, char** argv) {
 		* @todo Only calculate phi with intensities != 0
 		*/
 	int delta = 125;
-	#pragma omp parallel for
+	//#pragma omp parallel for
 	for(unsigned int i = 0; i < intensities.size(); i++) {
 		if(support_candidates_threshold < support_candidates[i]) {
-			#pragma omp parallel for
-			for(unsigned int j = 0; j < intensities[i].size(); j++) {
+			//#pragma omp parallel for
+			for(unsigned int j = 0; j < intensities[i].size()-1; j++) {
 				phis[i][j] = std::vector<int>(intensities[i][j].size());
 				int max = 0;
 				int min = 0;
-				#pragma omp parallel for
+				//#pragma omp parallel for
 				for(int k = 0; k < static_cast<int>(intensities[i][j].size()); k++) {
 					int phi_1 = 0;
 					int phi_2 = 0;
@@ -417,7 +436,7 @@ int main(int argc, char** argv) {
 						start = startStopIntensitiesPosition[i][0];
 					}
 
-					if(intensities[i][j].size() > (k + delta + 1)) {
+					if(static_cast<int>(intensities[i][j].size()) > (k + delta + 1)) {
 						end = k + delta + 1;
 					} else {
 						end = intensities[i][j].size();
@@ -449,8 +468,6 @@ int main(int argc, char** argv) {
 	end = std::chrono::steady_clock::now();
 	std::cout << "Compute phis: " << std::chrono::duration <double, std::milli> (end - start).count() << " ms" << std::endl;
 
-
-	std::cout << "Total time: " << std::chrono::duration <double, std::milli> (end - total_start).count() << " ms" << std::endl;
 
 	// Select a good line segment example
 	int index = 0;
@@ -523,6 +540,8 @@ int main(int argc, char** argv) {
 		}
 	}
 
+	std::cout << "Total time: " << std::chrono::duration <double, std::milli> (end - total_start).count() << " ms" << std::endl;
+
 	cv::drawContours(image_candidates, contour, -1, cv::Scalar(255, 0, 0), 1);
 
 	// Plot intensity and phi of selected line segment
@@ -579,7 +598,7 @@ int main(int argc, char** argv) {
 	//mgls_prepare1d(&y);
 	for(int i = 0; i < 5; i++) {
 		mgl_phi[i].Set(phi[i].data(), phi[i].size());
-		mgl_intensities[i].Set(intensity[i].data(), intensity[i].size());
+		mgl_intensities[i].Set(intensity[i].data(), intensity[i].size()-1);
 
 
 		gr_phi.SubPlot(1, 5, i);
