@@ -326,6 +326,7 @@ int main(int argc, char** argv) {
 	/**
 		* @todo Only calculate phi with intensities != 0
 		*/
+	int delta = 125;
 	#pragma omp parallel for
 	for(unsigned int i = 0; i < intensities.size(); i++) {
 		if(7 < support_candidates[i]) {
@@ -339,27 +340,46 @@ int main(int argc, char** argv) {
 					int phi_1 = 0;
 					int phi_2 = 0;
 
-					int lt = 0;
-					if(0 <= (k - 150 -1)) {
-						lt = k - 150 - 1;
+					int start = 0;
+					int end = 0;
+					if(0 <= (k - delta -1)) {
+						start = k - delta - 1;
 					} else {
-						lt = 0;
+						start = 0;
+					}
+
+					if((startStopIntensitiesPosition[i][1] < k) && (start < startStopIntensitiesPosition[i][1])) {
+						end = startStopIntensitiesPosition[i][1];
+					} else {
+						end = k;
+					}
+
+					if((startStopIntensitiesPosition[i][0] > start) && (end > startStopIntensitiesPosition[i][0])) {
+						start = startStopIntensitiesPosition[i][0];
 					}
 
 					#pragma omp parallel for
-					for(int l = lt; l < k; l++) {
+					for(int l = start; l < k; l++) {
 						phi_1 += std::abs(intensities[i][j][l + 1] - intensities[i][j][l]);
 					}
 
-					int end;
-					if(intensities[i][j].size() > (k + 150 + 1)) {
-						end = k + 150 + 1;
+					start = k;
+					if((startStopIntensitiesPosition[i][0] > start) && (end > startStopIntensitiesPosition[i][0])) {
+						start = startStopIntensitiesPosition[i][0];
+					}
+
+					if(intensities[i][j].size() > (k + delta + 1)) {
+						end = k + delta + 1;
 					} else {
 						end = intensities[i][j].size();
 					}
 
+					if((startStopIntensitiesPosition[i][1] < end) && (start < startStopIntensitiesPosition[i][1])) {
+						end = startStopIntensitiesPosition[i][1];
+					}
+
 					#pragma omp parallel for
-					for(int l = k; l < end; l++) {
+					for(int l = start; l < end; l++) {
 						phi_2 += std::abs(intensities[i][j][l] - intensities[i][j][l + 1]);
 					}
 
@@ -397,7 +417,7 @@ int main(int argc, char** argv) {
 			}
 		}
 	}
-	index = 3655;
+	index = 0;
 	std::cout << "index = " << index << ", size() = " << intensities[index][2].size() << std::endl;
 
 	// Calculate bounding boxes
@@ -420,11 +440,13 @@ int main(int argc, char** argv) {
 
 				//if(50 > diff_1 + diff_2 + diff_3 + diff_4) {
 				if(true) {
+					/*
 					std::cout << "support_candidates[" << i << "] = " << support_candidates[i] << std::endl;
 					std::cout << "diff_1 = " << diff_1 << ", diff_2 = " << diff_2 << ", diff_3 = " << diff_3 << ", diff_4 = " << diff_4 << std::endl;
 					std::cout << "Add one bounding box contour!" << std::endl;
 					std::cout << "keylines[" << i << "].lineLength = " << keylines[i].lineLength << std::endl;
 					std::cout << "start_barcode_pos[" << i << "][2] = " << start_barcode_pos[i][2] << " , end_barcode_pos[" << i << "][2] = " << end_barcode_pos[i][2] << ", end_pos = " << phis[i][2].size() << ", angle = " << 180*angle/M_PI << std::endl;
+					*/
 
 					contour[i][0] = cv::Point(perpencidularLineStartEndPoints[i][0].x + std::cos(angle)*start_barcode_pos[i][2] - keylines[i].lineLength*std::sin(angle)*0.5,
 																		perpencidularLineStartEndPoints[i][0].y - std::sin(angle)*start_barcode_pos[i][2] - keylines[i].lineLength*std::cos(angle)*0.5);
@@ -443,8 +465,10 @@ int main(int argc, char** argv) {
 					std::cout << "std::cos(M_PI_2 + keylines[" << i << "].angle)*start_barcode_pos[" << i << "][2] = " << std::cos(M_PI_2 + keylines[i].angle)*start_barcode_pos[i][2] << std::endl;
 					std::cout << "std::sin(M_PI_2 + keylines[" << i << "].angle)*start_barcode_pos[" << i << "][2] = " << std::sin(M_PI_2 + keylines[i].angle)*start_barcode_pos[i][2] << std::endl;
 					*/
+					/*
 					std::cout << "contour[" << i << "][0] = " << contour[i][0] << ", contour[" << i << "][1] = " << contour[i][1] <<
 											 ", contour[" << i << "][2] = " << contour[i][2] << ", contour[" << i << "][3] = " << contour[i][3] << std::endl;
+					*/
 				}
 			}
 		}
@@ -513,7 +537,7 @@ int main(int argc, char** argv) {
 		std::string str = "Phi " + std::to_string(i);
 		gr_phi.Title(str.c_str());
 		gr_phi.SetOrigin(0,0,0);
-		gr_phi.SetRanges(0, phis[index][2].size(), -5800, 5800);
+		gr_phi.SetRanges(0, phis[index][2].size(), -2900, 2900);
 		gr_phi.Axis();
 		gr_phi.Grid();
 		gr_phi.Plot(mgl_phi[i]);
