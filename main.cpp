@@ -200,8 +200,6 @@ void createVectorsOfIntensities(std::vector<int> &support_candidates,
 	float temp_4;
 	std::vector<cv::Point> pt2s(6);
 	int pt_size;
-	int start_pixel;
-	int end_pixel;
 	int start;
 	int end;
 	int lineIterators_size_2;
@@ -303,65 +301,65 @@ void computePhis(int delta,
 				int min = 0;
 				#pragma omp parallel for
 				for(int k = 0; k < intensities_i_j_size; k++) {
-					int phi_1 = 0;
-					int phi_2 = 0;
+					if(startStopIntensitiesPosition_i_0 - delta < k) {
+						if(startStopIntensitiesPosition_i_1 + delta > k) {
+							int phi_1 = 0;
+							int phi_2 = 0;
 
-					int start_1 = 0;
-					int end_1 = k;
+							int start_1 = k - delta - 1;
+							int end_1 = k;
 
-					if(0 <= (k - delta -1)) {
-						start_1 = k - delta - 1;
-					}
+							if(startStopIntensitiesPosition_i_1 < k) {
+								if (start_1 < startStopIntensitiesPosition_i_1) {
+									end_1 = startStopIntensitiesPosition_i_1;
+								}
+							}
 
-					if(startStopIntensitiesPosition_i_1 < k) {
-						if (start_1 < startStopIntensitiesPosition_i_1) {
-							end_1 = startStopIntensitiesPosition_i_1;
+							if(end_1 > startStopIntensitiesPosition_i_0) {
+								if(startStopIntensitiesPosition_i_0 > start_1) {
+									start_1 = startStopIntensitiesPosition_i_0;
+								}
+							}
+
+							#pragma omp parallel for
+							for(int l = start_1; l < end_1; l++) {
+								phi_1 += std::abs(intensities[i][j][l + 1] - intensities[i][j][l]);
+							}
+
+							int start_2 = k;
+							int end_2 = intensities_i_j_size;
+							if(startStopIntensitiesPosition_i_0 > start_2) {
+								if(end_1 > startStopIntensitiesPosition_i_0) {
+									start_2 = startStopIntensitiesPosition_i_0;
+								}
+							}
+
+							if(intensities_i_j_size > (k + delta + 1)) {
+								end_2 = k + delta + 1;
+							}
+
+							if(startStopIntensitiesPosition_i_1 < end_2) {
+								if(start_2 < startStopIntensitiesPosition_i_1) {
+									end_2 = startStopIntensitiesPosition_i_1;
+								}
+							}
+
+							#pragma omp parallel for
+							for(int l = start_2; l < end_2; l++) {
+								phi_2 += std::abs(intensities[i][j][l] - intensities[i][j][l + 1]);
+							}
+
+							phis[i][j][k] = phi_1 - phi_2;
+
+							if(phis[i][j][k] > max) {
+								max = phis[i][j][k];
+								end_barcode_pos[i][j] = k;
+							}
+							if(phis[i][j][k] < min) {
+								min = phis[i][j][k];
+								start_barcode_pos[i][j] = k;
+							}
 						}
-					}
-
-					if(end_1 > startStopIntensitiesPosition_i_0) {
-						if(startStopIntensitiesPosition_i_0 > start_1) {
-							start_1 = startStopIntensitiesPosition_i_0;
-						}
-					}
-
-					#pragma omp parallel for
-					for(int l = start_1; l < end_1; l++) {
-						phi_1 += std::abs(intensities[i][j][l + 1] - intensities[i][j][l]);
-					}
-
-					int start_2 = k;
-					int end_2 = intensities_i_j_size;
-					if(startStopIntensitiesPosition_i_0 > start_2) {
-						if(end_1 > startStopIntensitiesPosition_i_0) {
-							start_2 = startStopIntensitiesPosition_i_0;
-						}
-					}
-
-					if(intensities_i_j_size > (k + delta + 1)) {
-						end_2 = k + delta + 1;
-					}
-
-					if(startStopIntensitiesPosition_i_1 < end_2) {
-						if(start_2 < startStopIntensitiesPosition_i_1) {
-							end_2 = startStopIntensitiesPosition_i_1;
-						}
-					}
-
-					#pragma omp parallel for
-					for(int l = start_2; l < end_2; l++) {
-						phi_2 += std::abs(intensities[i][j][l] - intensities[i][j][l + 1]);
-					}
-
-					phis[i][j][k] = phi_1 - phi_2;
-
-					if(phis[i][j][k] > max) {
-						max = phis[i][j][k];
-						end_barcode_pos[i][j] = k;
-					}
-					if(phis[i][j][k] < min) {
-						min = phis[i][j][k];
-						start_barcode_pos[i][j] = k;
 					}
 				}
 			}
