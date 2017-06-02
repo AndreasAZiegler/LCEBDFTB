@@ -283,10 +283,12 @@ void computePhis(int delta,
 								 int intensities_size,
 								 std::vector<std::vector<std::vector<int>>> &phis,
 								 std::vector<std::vector<int>> &startStopIntensitiesPosition,
-								 std::vector<std::vector<int>> &start_barcode_pos,
-								 std::vector<std::vector<int>> &end_barcode_pos) {
+								 std::vector<int> &start_barcode_pos,
+								 std::vector<int> &end_barcode_pos) {
 
-	#pragma omp parallel for
+
+	int phis_i_5_k;
+	//#pragma omp parallel for
 	for(int i = 0; i < intensities_size; i++) {
 		int intensities_i_size = intensities[i].size();
 		int startStopIntensitiesPosition_i_0 = startStopIntensitiesPosition[i][0];
@@ -350,31 +352,31 @@ void computePhis(int delta,
 							}
 
 							phis[i][j][k] = phi_1 - phi_2;
-
-							if(phis[i][j][k] > max) {
-								max = phis[i][j][k];
-								end_barcode_pos[i][j] = k;
-							}
-							if(phis[i][j][k] < min) {
-								min = phis[i][j][k];
-								start_barcode_pos[i][j] = k;
-							}
 						}
 					}
 				}
 			}
-			int phis_i_size = phis[i][5].size();
-			for(int k = 0; k < phis_i_size; k++) {
-				phis[i][5][k] = phis[i][0][k] + phis[i][1][k] + phis[i][2][k] + phis[i][3][k] + phis[i][4][k];
-				phis[i][5][k] /= 5;
+
+			phis[i][5] = std::vector<int>(phis[i][0].size());
+			int phis_i_5_size = phis[i][5].size();
+			for(int k = 0; k < phis_i_5_size; k++) {
+				phis_i_5_k = phis[i][0][k] + phis[i][1][k] + phis[i][2][k] + phis[i][3][k] + phis[i][4][k];
+				phis[i][5][k] = phis_i_5_k / 5;
 			}
+
+			start_barcode_pos[i] = std::distance(phis[i][5].begin(),
+																					 std::min_element(phis[i][5].begin(),
+																					 phis[i][5].end()));
+			end_barcode_pos[i] = std::distance(phis[i][5].begin(),
+																				 std::max_element(phis[i][5].begin(),
+																				 phis[i][5].end()));
 		}
 	}
 }
 
 void calculateBoundingBoxes(int keylinesInContours_size,
-														std::vector<std::vector<int>> &start_barcode_pos,
-														std::vector<std::vector<int>> &end_barcode_pos,
+														std::vector<int> &start_barcode_pos,
+														std::vector<int> &end_barcode_pos,
 														std::vector<int> &support_candidates,
 														int support_candidates_threshold,
 														std::vector<cv::line_descriptor::KeyLine> &keylines,
@@ -386,7 +388,7 @@ void calculateBoundingBoxes(int keylinesInContours_size,
 
 	#pragma omp parallel for
 	for(int i = 0; i < keylinesInContours_size; i++) {
-		length = end_barcode_pos[i][2] - start_barcode_pos[i][2];
+		length = end_barcode_pos[i] - start_barcode_pos[i];
 		if(support_candidates_threshold < support_candidates[i]) {
 		//if(i == index) {
 			if(0 < length) {
@@ -409,21 +411,20 @@ void calculateBoundingBoxes(int keylinesInContours_size,
 					std::cout << "diff_1 = " << diff_1 << ", diff_2 = " << diff_2 << ", diff_3 = " << diff_3 << ", diff_4 = " << diff_4 << std::endl;
 					std::cout << "Add one bounding box contour!" << std::endl;
 					std::cout << "keylines[" << i << "].lineLength = " << keylines[i].lineLength << std::endl;
-					std::cout << "start_barcode_pos[" << i << "][2] = " << start_barcode_pos[i][2] << " , end_barcode_pos[" << i << "][2] = " << end_barcode_pos[i][2] << ", end_pos = " << phis[i][2].size() << ", angle = " << 180*angle/M_PI << std::endl;
+					std::cout << "start_barcode_pos = " << start_barcode_pos[i] << " , end_barcode_pos = " << end_barcode_pos[i] << std::endl;// ", end_pos = " << phis[i][2].size() << ", angle = " << 180*angle/M_PI << std::endl;
 					*/
 
-					contour[i][0] = cv::Point(perpendicularLineStartEndPoints[i][0].x + std::cos(angle)*start_barcode_pos[i][2] - keylines[i].lineLength*std::sin(angle)*0.5,
-																		perpendicularLineStartEndPoints[i][0].y - std::sin(angle)*start_barcode_pos[i][2] - keylines[i].lineLength*std::cos(angle)*0.5);
-					contour[i][1] = cv::Point(perpendicularLineStartEndPoints[i][0].x + std::cos(angle)*end_barcode_pos[i][2] - keylines[i].lineLength*std::sin(angle)*0.5,
-																		perpendicularLineStartEndPoints[i][0].y - std::sin(angle)*end_barcode_pos[i][2] - keylines[i].lineLength*std::cos(angle)*0.5);
-					contour[i][2] = cv::Point(perpendicularLineStartEndPoints[i][0].x + std::cos(angle)*end_barcode_pos[i][2] + keylines[i].lineLength*std::sin(angle)*0.5,
-																		perpendicularLineStartEndPoints[i][0].y - std::sin(angle)*end_barcode_pos[i][2] + keylines[i].lineLength*std::cos(angle)*0.5);
-					contour[i][3] = cv::Point(perpendicularLineStartEndPoints[i][0].x + std::cos(angle)*start_barcode_pos[i][2] + keylines[i].lineLength*std::sin(angle)*0.5,
-																		perpendicularLineStartEndPoints[i][0].y - std::sin(angle)*start_barcode_pos[i][2] + keylines[i].lineLength*std::cos(angle)*0.5);
+					contour[i][0] = cv::Point(perpendicularLineStartEndPoints[i][0].x + std::cos(angle)*start_barcode_pos[i] - keylines[i].lineLength*std::sin(angle)*0.5,
+																		perpendicularLineStartEndPoints[i][0].y - std::sin(angle)*start_barcode_pos[i] - keylines[i].lineLength*std::cos(angle)*0.5);
+					contour[i][1] = cv::Point(perpendicularLineStartEndPoints[i][0].x + std::cos(angle)*end_barcode_pos[i] - keylines[i].lineLength*std::sin(angle)*0.5,
+																		perpendicularLineStartEndPoints[i][0].y - std::sin(angle)*end_barcode_pos[i] - keylines[i].lineLength*std::cos(angle)*0.5);
+					contour[i][2] = cv::Point(perpendicularLineStartEndPoints[i][0].x + std::cos(angle)*end_barcode_pos[i] + keylines[i].lineLength*std::sin(angle)*0.5,
+																		perpendicularLineStartEndPoints[i][0].y - std::sin(angle)*end_barcode_pos[i] + keylines[i].lineLength*std::cos(angle)*0.5);
+					contour[i][3] = cv::Point(perpendicularLineStartEndPoints[i][0].x + std::cos(angle)*start_barcode_pos[i] + keylines[i].lineLength*std::sin(angle)*0.5,
+																		perpendicularLineStartEndPoints[i][0].y - std::sin(angle)*start_barcode_pos[i] + keylines[i].lineLength*std::cos(angle)*0.5);
 
-					/*
-					cv::putText(image_candidates, std::to_string(i), keylines[i].getEndPoint(), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0));
 					cv::putText(image_candidates, std::to_string(i), contour[i][0], cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0));
+					/*
 					cv::line(image_candidates, keylines[i].getStartPoint(), keylines[i].getEndPoint(), cv::Scalar(255, 0, 0), 2);
 					std::cout << "perpencidularLineStartEndPoints[" << i << "][0].x = " << perpencidularLineStartEndPoints[i][0].x << ", perpencidularLineStartEndPoints[" << i << "][0].y = " << perpencidularLineStartEndPoints[i][0].y << std::endl;
 					std::cout << "contour[" << i << "][0] = " << contour[i][0] << ", contour[" << i << "][1] = " << contour[i][1] <<
@@ -547,8 +548,8 @@ int main(int argc, char** argv) {
 	// Compute phis
 	start = std::chrono::steady_clock::now();
 	std::vector<std::vector<std::vector<int>>> phis(keylinesInContours_size, std::vector<std::vector<int>>(6));
-	std::vector<std::vector<int>> start_barcode_pos(keylinesInContours_size, std::vector<int>(5));
-	std::vector<std::vector<int>> end_barcode_pos(keylinesInContours_size, std::vector<int>(5));
+	std::vector<int> start_barcode_pos(keylinesInContours_size);
+	std::vector<int> end_barcode_pos(keylinesInContours_size);
 
 	computePhis(delta,
 							support_candidates,
@@ -602,12 +603,15 @@ int main(int argc, char** argv) {
 
 	// Plot intensity and phi of selected line segment
 	std::vector<std::vector<double>> intensity(5, std::vector<double>(intensities[index][2].size()));
-	std::vector<std::vector<double>> phi(5, std::vector<double>(phis[index][2].size()));
+	std::vector<std::vector<double>> phi(6, std::vector<double>(phis[index][2].size()));
 	for(int j = 0; j < 5; j++) {
 		for(unsigned int i = 0; i < intensities[index][2].size(); i++) {
 			intensity[j][i] = static_cast<double>(intensities[index][j][i]);
 			phi[j][i] = static_cast<double>(phis[index][j][i]);
 		}
+	}
+	for(unsigned int i = 0; i < intensities[index][2].size(); i++) {
+		phi[5][i] = static_cast<double>(phis[index][5][i]);
 	}
 
 	// Draw line segment and perpendicular line
@@ -648,7 +652,7 @@ int main(int argc, char** argv) {
 
 	mglGraph gr_int;
 	mglGraph gr_phi;
-	std::vector<mglData> mgl_phi(5);
+	std::vector<mglData> mgl_phi(6);
 	std::vector<mglData> mgl_intensities(5);
 
 	//mgls_prepare1d(&y);
@@ -657,7 +661,7 @@ int main(int argc, char** argv) {
 		mgl_intensities[i].Set(intensity[i].data(), intensity[i].size()-1);
 
 
-		gr_phi.SubPlot(1, 5, i);
+		gr_phi.SubPlot(1, 6, i);
 		std::string str = "Phi " + std::to_string(i);
 		gr_phi.Title(str.c_str());
 		gr_phi.SetOrigin(0,0,0);
@@ -676,6 +680,16 @@ int main(int argc, char** argv) {
 		gr_int.Grid();
 		gr_int.Plot(mgl_intensities[i]);
 	}
+
+	mgl_phi[5].Set(phi[5].data(), phi[5].size());
+	gr_phi.SubPlot(1, 6, 5);
+	std::string str = "Phi average";
+	gr_phi.Title(str.c_str());
+	gr_phi.SetOrigin(0,0,0);
+	gr_phi.SetRanges(0, phis[index][2].size(), -2900, 2900);
+	gr_phi.Axis();
+	gr_phi.Grid();
+	gr_phi.Plot(mgl_phi[5]);
 
 
 	//gr.Box();
