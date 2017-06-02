@@ -205,6 +205,7 @@ void createVectorsOfIntensities(std::vector<int> &support_candidates,
 	int start;
 	int end;
 	int lineIterators_size_2;
+	int lineIterators_5_count;
 
 	for(int i = 0; i < intensities_size; i++) {
 		if(support_candidates_threshold < support_candidates[i]) {
@@ -265,7 +266,7 @@ void createVectorsOfIntensities(std::vector<int> &support_candidates,
 
 			lineIterators_size_2 = lineIterators.size() - 1;
 			for(int j = 0; j < lineIterators_size_2; j++) {
-				int lineIterators_5_count = lineIterators[5].count;
+				lineIterators_5_count = lineIterators[5].count;
 				intensities[i][j] = std::vector<uchar>(lineIterators_5_count);
 
 				for(uchar &intensity : intensities[i][j]) {
