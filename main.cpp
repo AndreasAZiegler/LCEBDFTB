@@ -192,15 +192,20 @@ void createVectorsOfIntensities(std::vector<int> &support_candidates,
 	float kl_pt_y;
 	float temp_0;
 	float temp_1;
+	float temp_2;
 	int temp_start;
 	int temp_end;
-	float temp_2;
-	int intensities_i_size;
-	int lineIterators_size;
-	int lineIterators_j_count;
+	std::vector<cv::Point> pt1s(6);
+	float temp_3;
+	float temp_4;
+	std::vector<cv::Point> pt2s(6);
+	int pt_size;
+	int start_pixel;
+	int end_pixel;
+	int start;
+	int end;
+	int lineIterators_size_2;
 
-	std::vector<cv::Point> pt1s(5);
-	std::vector<cv::Point> pt2s(5);
 	for(int i = 0; i < intensities_size; i++) {
 		if(support_candidates_threshold < support_candidates[i]) {
 			std::shared_ptr<cv::line_descriptor::KeyLine> kl = keylinesInContours[i][support_candidates_pos[i]];
@@ -216,54 +221,59 @@ void createVectorsOfIntensities(std::vector<int> &support_candidates,
 			kl_pt_x = kl->pt.x;
 
 			temp_0= kl_pt_y + kl_pt_x*std::tan(angle);
-
 			temp_1 = 600*std::cos(angle);
+			temp_2= kl_pt_y + temp_1*std::tan(angle);
+
 			temp_start = kl_pt_x - temp_1;
 			temp_end = kl_pt_x + temp_1;
 			startStopIntensitiesPosition[i][0] = temp_start;
 			startStopIntensitiesPosition[i][1] = temp_end;
 
-			pt1s[0] = (cv::Point(0, temp_0 - 16));
-			pt1s[1] = (cv::Point(0, temp_0 - 8));
-			pt1s[2] = (cv::Point(0, temp_0));
-			pt1s[3] = (cv::Point(0, temp_0 + 8));
-			pt1s[4] = (cv::Point(0, temp_0 + 16));
+			pt1s[0] = (cv::Point(temp_start, temp_2 - 16));
+			pt1s[1] = (cv::Point(temp_start, temp_2 - 8));
+			pt1s[2] = (cv::Point(temp_start, temp_2));
+			pt1s[3] = (cv::Point(temp_start, temp_2 + 8));
+			pt1s[4] = (cv::Point(temp_start, temp_2 + 16));
+			pt1s[5] = cv::Point(0, temp_0);
 
-			temp_2 = kl_pt_y - (image_cols - kl_pt_x)*std::tan(angle);
+			temp_3 = kl_pt_y - (image_cols - kl_pt_x)*std::tan(angle);
+			temp_4 = kl_pt_y - temp_1*std::tan(angle);
 
-			pt2s[0] = (cv::Point(image_cols, temp_2 - 16));
-			pt2s[1] = (cv::Point(image_cols, temp_2 - 8));
-			pt2s[2] = (cv::Point(image_cols, temp_2));
-			pt2s[3] = (cv::Point(image_cols, temp_2 + 8));
-			pt2s[4] = (cv::Point(image_cols, temp_2 + 16));
+			pt2s[0] = (cv::Point(temp_end, temp_4 - 16));
+			pt2s[1] = (cv::Point(temp_end, temp_4 - 8));
+			pt2s[2] = (cv::Point(temp_end, temp_4));
+			pt2s[3] = (cv::Point(temp_end, temp_4 + 8));
+			pt2s[4] = (cv::Point(temp_end, temp_4 + 16));
+			pt2s[5] = cv::Point(image_cols, temp_3);
 
 			perpendidularLineStartEndPoints[i][0] = cv::Point(0, temp_0);
-			perpendidularLineStartEndPoints[i][1] = cv::Point(image_cols, temp_2);
+			perpendidularLineStartEndPoints[i][1] = cv::Point(image_cols, temp_3);
 
+
+			pt_size = pt1s.size();
 			std::vector<cv::LineIterator> lineIterators;
-			intensities_i_size = intensities[i].size();
-			for(int j = 0; j < intensities_i_size; j++) {
+			for(int j = 0; j < pt_size; j++) {
 				lineIterators.push_back(cv::LineIterator(image_greyscale, pt1s[j], pt2s[j], 8, true));
 				//cv::line(image_candidates, pt1s[j], pt2s[j], cv::Scalar(0, 255, 0), 1);
 			}
 
-			lineIterators_size = lineIterators.size();
-			for(int j = 0; j < lineIterators_size; j++) {
-				lineIterators_j_count = lineIterators[j].count;
-				intensities[i][j] = std::vector<uchar>(lineIterators_j_count);
+			start_pixel = startStopIntensitiesPosition[i][0];
+			end_pixel = startStopIntensitiesPosition[i][1];
 
-				for(int k = 0; k < lineIterators_j_count; k++, ++lineIterators[j]) {
-					//std::cout << "Angle = " << 180*angle/M_PI << std::endl;
-					//std::cout << "Start taking intensities at: " << startStopIntensitiesPosition[i][0] << std::endl;
-					//std::cout << "End taking intensities at: " << startStopIntensitiesPosition[i][1] << std::endl;
-					//std::cout << "pos.x: " << lineIterators[j].pos().x << std::endl;
+			for(start = 0; start_pixel > lineIterators[5].pos().x; ++lineIterators[5], start++);
+			for(end = start; end_pixel > lineIterators[5].pos().x; ++lineIterators[5], end++);
 
-					if((startStopIntensitiesPosition[i][0] < lineIterators[j].pos().x) &&
-						 (startStopIntensitiesPosition[i][1] > lineIterators[j].pos().x)) {
+			lineIterators_size_2 = lineIterators.size() - 1;
+			for(int j = 0; j < lineIterators_size_2; j++) {
+				int lineIterators_5_count = lineIterators[5].count;
+				intensities[i][j] = std::vector<uchar>(lineIterators_5_count);
+
+				for(uchar &intensity : intensities[i][j]) {
+					intensity = 0;
+				}
+
+				for(int k = start; k < end; k++, ++lineIterators[j]) {
 						intensities[i][j][k] = image_greyscale.at<uchar>(lineIterators[j].pos());
-					} else {
-						intensities[i][j][k] = 0;
-					}
 				}
 			}
 		}
@@ -476,15 +486,15 @@ int main(int argc, char** argv) {
 			}
 		}
 	}
-	index = 0;
+	index = 3965;
 	std::cout << "index = " << index << ", size() = " << intensities[index][2].size() << std::endl;
 
 	// Calculate bounding boxes
 	std::vector<std::vector<cv::Point>> contour(keylinesInContours_size, std::vector<cv::Point>(4));
 	for(int i = 0; i < keylinesInContours_size; i++) {
 		int length = end_barcode_pos[i][2] - start_barcode_pos[i][2];
-		if(support_candidates_threshold < support_candidates[i]) {
-		//if(i == index) {
+		//if(support_candidates_threshold < support_candidates[i]) {
+		if(i == index) {
 			if((0 < length) && ((length / keylines[i].lineLength) < 10)) {
 				int diff_1 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][0]);
 				int diff_2 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][1]);
