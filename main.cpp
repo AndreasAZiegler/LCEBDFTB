@@ -187,73 +187,71 @@ void createVectorsOfIntensities(std::vector<int> &support_candidates,
 																int image_cols,
 																int intensities_size,
 																int support_candidates_threshold) {
+	float angle;
+	float kl_pt_x;
+	float kl_pt_y;
+	float temp_0;
+	float temp_1;
+	int temp_start;
+	int temp_end;
+	float temp_2;
+	int intensities_i_size;
+	int lineIterators_size;
+	int lineIterators_j_count;
+
+	std::vector<cv::Point> pt1s(5);
+	std::vector<cv::Point> pt2s(5);
 	for(int i = 0; i < intensities_size; i++) {
 		if(support_candidates_threshold < support_candidates[i]) {
 			std::shared_ptr<cv::line_descriptor::KeyLine> kl = keylinesInContours[i][support_candidates_pos[i]];
 
-			float angle = kl->angle;
+			angle = kl->angle;
 			if(0 < angle) {
 				angle	= (M_PI_2 - angle);
 			} else {
 				angle = -(M_PI_2 - std::abs(angle));
 			}
 
-			auto kl_pt_y = kl->pt.y;
-			auto kl_pt_x = kl->pt.x;
+			kl_pt_y = kl->pt.y;
+			kl_pt_x = kl->pt.x;
 
-			register float temp_0= kl_pt_y + kl_pt_x*std::tan(angle);
+			temp_0= kl_pt_y + kl_pt_x*std::tan(angle);
 
-			float temp_1 = 600*std::cos(angle);
-			int temp_start = kl_pt_x - temp_1;
-			int temp_end = kl_pt_x + temp_1;
+			temp_1 = 600*std::cos(angle);
+			temp_start = kl_pt_x - temp_1;
+			temp_end = kl_pt_x + temp_1;
 			startStopIntensitiesPosition[i][0] = temp_start;
 			startStopIntensitiesPosition[i][1] = temp_end;
 
-			std::vector<cv::Point> pt1s(6);
-			pt1s[0] = (cv::Point(temp_start, temp_0 - 16));
-			pt1s[1] = (cv::Point(temp_start, temp_0 - 8));
-			pt1s[2] = (cv::Point(temp_start, temp_0));
-			pt1s[3] = (cv::Point(temp_start, temp_0 + 8));
-			pt1s[4] = (cv::Point(temp_start, temp_0 + 16));
-			pt1s[5] = cv::Point(0, temp_0);
+			pt1s[0] = (cv::Point(0, temp_0 - 16));
+			pt1s[1] = (cv::Point(0, temp_0 - 8));
+			pt1s[2] = (cv::Point(0, temp_0));
+			pt1s[3] = (cv::Point(0, temp_0 + 8));
+			pt1s[4] = (cv::Point(0, temp_0 + 16));
 
-			register float temp_2 = kl_pt_y - (image_cols - kl_pt_x)*std::tan(angle);
+			temp_2 = kl_pt_y - (image_cols - kl_pt_x)*std::tan(angle);
 
-			std::vector<cv::Point> pt2s(6);
-			pt2s[0] = (cv::Point(temp_end, temp_2 - 16));
-			pt2s[1] = (cv::Point(temp_end, temp_2 - 8));
-			pt2s[2] = (cv::Point(temp_end, temp_2));
-			pt2s[3] = (cv::Point(temp_end, temp_2 + 8));
-			pt2s[4] = (cv::Point(temp_end, temp_2 + 16));
-			pt2s[5] = cv::Point(image_cols, temp_2);
+			pt2s[0] = (cv::Point(image_cols, temp_2 - 16));
+			pt2s[1] = (cv::Point(image_cols, temp_2 - 8));
+			pt2s[2] = (cv::Point(image_cols, temp_2));
+			pt2s[3] = (cv::Point(image_cols, temp_2 + 8));
+			pt2s[4] = (cv::Point(image_cols, temp_2 + 16));
 
 			perpendidularLineStartEndPoints[i][0] = cv::Point(0, temp_0);
 			perpendidularLineStartEndPoints[i][1] = cv::Point(image_cols, temp_2);
 
 			std::vector<cv::LineIterator> lineIterators;
-			int intensities_i_size = intensities[i].size();
+			intensities_i_size = intensities[i].size();
 			for(int j = 0; j < intensities_i_size; j++) {
 				lineIterators.push_back(cv::LineIterator(image_greyscale, pt1s[j], pt2s[j], 8, true));
 				//cv::line(image_candidates, pt1s[j], pt2s[j], cv::Scalar(0, 255, 0), 1);
 			}
 
-			int lineIterators_size = lineIterators.size();
+			lineIterators_size = lineIterators.size();
 			for(int j = 0; j < lineIterators_size; j++) {
-				int lineIterators_5_count = lineIterators[5].count;
-				intensities[i][j] = std::vector<uchar>(lineIterators_5_count);
+				lineIterators_j_count = lineIterators[j].count;
+				intensities[i][j] = std::vector<uchar>(lineIterators_j_count);
 
-				for(uchar intensity : intensities[i][j]) {
-					intensity = 0;
-				}
-
-				int start = startStopIntensitiesPosition[i][0];
-				int end = startStopIntensitiesPosition[i][1];
-
-				for(int k = start; k < end; k++, ++lineIterators[j]) {
-						intensities[i][j][k] = image_greyscale.at<uchar>(lineIterators[j].pos());
-				}
-
-				/*
 				for(int k = 0; k < lineIterators_j_count; k++, ++lineIterators[j]) {
 					//std::cout << "Angle = " << 180*angle/M_PI << std::endl;
 					//std::cout << "Start taking intensities at: " << startStopIntensitiesPosition[i][0] << std::endl;
@@ -267,7 +265,6 @@ void createVectorsOfIntensities(std::vector<int> &support_candidates,
 						intensities[i][j][k] = 0;
 					}
 				}
-				*/
 			}
 		}
 	}
