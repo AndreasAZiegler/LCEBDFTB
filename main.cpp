@@ -181,7 +181,7 @@ void createVectorsOfIntensities(std::vector<int> &support_candidates,
 																std::vector<int> &support_candidates_pos,
 																std::vector<std::vector<std::shared_ptr<cv::line_descriptor::KeyLine>>> &keylinesInContours,
 																std::vector<std::vector<int>> &startStopIntensitiesPosition,
-																std::vector<std::vector<cv::Point>> &perpendidularLineStartEndPoints,
+																std::vector<std::vector<cv::Point>> &perpendicularLineStartEndPoints,
 																std::vector<std::vector<std::vector<uchar>>> &intensities,
 																cv::Mat &image_greyscale,
 																int image_cols,
@@ -245,8 +245,8 @@ void createVectorsOfIntensities(std::vector<int> &support_candidates,
 			pt2s[4] = (cv::Point(temp_end, temp_4 + 16));
 			pt2s[5] = cv::Point(image_cols, temp_3);
 
-			perpendidularLineStartEndPoints[i][0] = cv::Point(0, temp_0);
-			perpendidularLineStartEndPoints[i][1] = cv::Point(image_cols, temp_3);
+			perpendicularLineStartEndPoints[i][0] = cv::Point(0, temp_0);
+			perpendicularLineStartEndPoints[i][1] = cv::Point(image_cols, temp_3);
 
 
 			pt_size = pt1s.size();
@@ -363,6 +363,74 @@ void computePhis(int delta,
 					}
 				}
 			}
+			int phis_i_size = phis[i][5].size();
+			for(int k = 0; k < phis_i_size; k++) {
+				phis[i][5][k] = phis[i][0][k] + phis[i][1][k] + phis[i][2][k] + phis[i][3][k] + phis[i][4][k];
+				phis[i][5][k] /= 5;
+			}
+		}
+	}
+}
+
+void calculateBoundingBoxes(int keylinesInContours_size,
+														std::vector<std::vector<int>> &start_barcode_pos,
+														std::vector<std::vector<int>> &end_barcode_pos,
+														std::vector<int> &support_candidates,
+														int support_candidates_threshold,
+														std::vector<cv::line_descriptor::KeyLine> &keylines,
+														std::vector<std::vector<cv::Point>> &contour,
+														std::vector<std::vector<cv::Point>> &perpendicularLineStartEndPoints,
+														cv::Mat &image_candidates) {
+
+	int length;
+
+	#pragma omp parallel for
+	for(int i = 0; i < keylinesInContours_size; i++) {
+		length = end_barcode_pos[i][2] - start_barcode_pos[i][2];
+		if(support_candidates_threshold < support_candidates[i]) {
+		//if(i == index) {
+			if(0 < length) {
+				if((length / keylines[i].lineLength) < 10) {
+					/*
+					int diff_1 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][0]);
+					int diff_2 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][1]);
+					int diff_3 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][3]);
+					int diff_4 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][4]);
+					*/
+					float angle = keylines[i].angle;
+					if(0 < angle) {
+						angle	= (M_PI_2 - angle);
+					} else {
+						angle = -(M_PI_2 - std::abs(angle));
+					}
+
+					/*
+					std::cout << "support_candidates[" << i << "] = " << support_candidates[i] << std::endl;
+					std::cout << "diff_1 = " << diff_1 << ", diff_2 = " << diff_2 << ", diff_3 = " << diff_3 << ", diff_4 = " << diff_4 << std::endl;
+					std::cout << "Add one bounding box contour!" << std::endl;
+					std::cout << "keylines[" << i << "].lineLength = " << keylines[i].lineLength << std::endl;
+					std::cout << "start_barcode_pos[" << i << "][2] = " << start_barcode_pos[i][2] << " , end_barcode_pos[" << i << "][2] = " << end_barcode_pos[i][2] << ", end_pos = " << phis[i][2].size() << ", angle = " << 180*angle/M_PI << std::endl;
+					*/
+
+					contour[i][0] = cv::Point(perpendicularLineStartEndPoints[i][0].x + std::cos(angle)*start_barcode_pos[i][2] - keylines[i].lineLength*std::sin(angle)*0.5,
+																		perpendicularLineStartEndPoints[i][0].y - std::sin(angle)*start_barcode_pos[i][2] - keylines[i].lineLength*std::cos(angle)*0.5);
+					contour[i][1] = cv::Point(perpendicularLineStartEndPoints[i][0].x + std::cos(angle)*end_barcode_pos[i][2] - keylines[i].lineLength*std::sin(angle)*0.5,
+																		perpendicularLineStartEndPoints[i][0].y - std::sin(angle)*end_barcode_pos[i][2] - keylines[i].lineLength*std::cos(angle)*0.5);
+					contour[i][2] = cv::Point(perpendicularLineStartEndPoints[i][0].x + std::cos(angle)*end_barcode_pos[i][2] + keylines[i].lineLength*std::sin(angle)*0.5,
+																		perpendicularLineStartEndPoints[i][0].y - std::sin(angle)*end_barcode_pos[i][2] + keylines[i].lineLength*std::cos(angle)*0.5);
+					contour[i][3] = cv::Point(perpendicularLineStartEndPoints[i][0].x + std::cos(angle)*start_barcode_pos[i][2] + keylines[i].lineLength*std::sin(angle)*0.5,
+																		perpendicularLineStartEndPoints[i][0].y - std::sin(angle)*start_barcode_pos[i][2] + keylines[i].lineLength*std::cos(angle)*0.5);
+
+					/*
+					cv::putText(image_candidates, std::to_string(i), keylines[i].getEndPoint(), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0));
+					cv::putText(image_candidates, std::to_string(i), contour[i][0], cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0));
+					cv::line(image_candidates, keylines[i].getStartPoint(), keylines[i].getEndPoint(), cv::Scalar(255, 0, 0), 2);
+					std::cout << "perpencidularLineStartEndPoints[" << i << "][0].x = " << perpencidularLineStartEndPoints[i][0].x << ", perpencidularLineStartEndPoints[" << i << "][0].y = " << perpencidularLineStartEndPoints[i][0].y << std::endl;
+					std::cout << "contour[" << i << "][0] = " << contour[i][0] << ", contour[" << i << "][1] = " << contour[i][1] <<
+											 ", contour[" << i << "][2] = " << contour[i][2] << ", contour[" << i << "][3] = " << contour[i][3] << std::endl;
+					*/
+				}
+			}
 		}
 	}
 }
@@ -454,7 +522,7 @@ int main(int argc, char** argv) {
 	std::cout << "Select s_cand: " << std::chrono::duration <double, std::milli> (end - start).count() << " ms" << std::endl;
 
 	// Create vectors of intensities
-	std::vector<std::vector<cv::Point>> perpendidularLineStartEndPoints(keylinesInContours_size, std::vector<cv::Point>(2));
+	std::vector<std::vector<cv::Point>> perpendicularLineStartEndPoints(keylinesInContours_size, std::vector<cv::Point>(2));
 	std::vector<std::vector<std::vector<uchar>>> intensities(keylinesInContours_size, std::vector<std::vector<uchar>>(5));
 	std::vector<std::vector<int>> startStopIntensitiesPosition(keylinesInContours_size, std::vector<int>(2));
 
@@ -466,7 +534,7 @@ int main(int argc, char** argv) {
 														 support_candidates_pos,
 														 keylinesInContours,
 														 startStopIntensitiesPosition,
-														 perpendidularLineStartEndPoints,
+														 perpendicularLineStartEndPoints,
 														 intensities,
 														 image_greyscale,
 														 image_cols,
@@ -478,13 +546,10 @@ int main(int argc, char** argv) {
 
 	// Compute phis
 	start = std::chrono::steady_clock::now();
-	std::vector<std::vector<std::vector<int>>> phis(keylinesInContours_size, std::vector<std::vector<int>>(5));
+	std::vector<std::vector<std::vector<int>>> phis(keylinesInContours_size, std::vector<std::vector<int>>(6));
 	std::vector<std::vector<int>> start_barcode_pos(keylinesInContours_size, std::vector<int>(5));
 	std::vector<std::vector<int>> end_barcode_pos(keylinesInContours_size, std::vector<int>(5));
 
-	/**
-		* @todo Only calculate phi with intensities != 0
-		*/
 	computePhis(delta,
 							support_candidates,
 							support_candidates_threshold,
@@ -516,58 +581,20 @@ int main(int argc, char** argv) {
 	std::cout << "index = " << index << ", size() = " << intensities[index][2].size() << std::endl;
 
 	// Calculate bounding boxes
+	start = std::chrono::steady_clock::now();
 	std::vector<std::vector<cv::Point>> contour(keylinesInContours_size, std::vector<cv::Point>(4));
-	for(int i = 0; i < keylinesInContours_size; i++) {
-		int length = end_barcode_pos[i][2] - start_barcode_pos[i][2];
-		if(support_candidates_threshold < support_candidates[i]) {
-		//if(i == index) {
-			if((0 < length) && ((length / keylines[i].lineLength) < 10)) {
-				int diff_1 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][0]);
-				int diff_2 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][1]);
-				int diff_3 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][3]);
-				int diff_4 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][4]);
-				float angle = keylines[i].angle;
-				if(0 < angle) {
-					angle	= (M_PI_2 - angle);
-				} else {
-					angle = -(M_PI_2 - std::abs(angle));
-				}
+	calculateBoundingBoxes(keylinesInContours_size,
+												 start_barcode_pos,
+												 end_barcode_pos,
+												 support_candidates,
+												 support_candidates_threshold,
+												 keylines,
+												 contour,
+												 perpendicularLineStartEndPoints,
+												 image_candidates);
 
-				//if(50 > diff_1 + diff_2 + diff_3 + diff_4) {
-				if(true) {
-					/*
-					std::cout << "support_candidates[" << i << "] = " << support_candidates[i] << std::endl;
-					std::cout << "diff_1 = " << diff_1 << ", diff_2 = " << diff_2 << ", diff_3 = " << diff_3 << ", diff_4 = " << diff_4 << std::endl;
-					std::cout << "Add one bounding box contour!" << std::endl;
-					std::cout << "keylines[" << i << "].lineLength = " << keylines[i].lineLength << std::endl;
-					std::cout << "start_barcode_pos[" << i << "][2] = " << start_barcode_pos[i][2] << " , end_barcode_pos[" << i << "][2] = " << end_barcode_pos[i][2] << ", end_pos = " << phis[i][2].size() << ", angle = " << 180*angle/M_PI << std::endl;
-					*/
-
-					contour[i][0] = cv::Point(perpendidularLineStartEndPoints[i][0].x + std::cos(angle)*start_barcode_pos[i][2] - keylines[i].lineLength*std::sin(angle)*0.5,
-																		perpendidularLineStartEndPoints[i][0].y - std::sin(angle)*start_barcode_pos[i][2] - keylines[i].lineLength*std::cos(angle)*0.5);
-					contour[i][1] = cv::Point(perpendidularLineStartEndPoints[i][0].x + std::cos(angle)*end_barcode_pos[i][2] - keylines[i].lineLength*std::sin(angle)*0.5,
-																		perpendidularLineStartEndPoints[i][0].y - std::sin(angle)*end_barcode_pos[i][2] - keylines[i].lineLength*std::cos(angle)*0.5);
-					contour[i][2] = cv::Point(perpendidularLineStartEndPoints[i][0].x + std::cos(angle)*end_barcode_pos[i][2] + keylines[i].lineLength*std::sin(angle)*0.5,
-																		perpendidularLineStartEndPoints[i][0].y - std::sin(angle)*end_barcode_pos[i][2] + keylines[i].lineLength*std::cos(angle)*0.5);
-					contour[i][3] = cv::Point(perpendidularLineStartEndPoints[i][0].x + std::cos(angle)*start_barcode_pos[i][2] + keylines[i].lineLength*std::sin(angle)*0.5,
-																		perpendidularLineStartEndPoints[i][0].y - std::sin(angle)*start_barcode_pos[i][2] + keylines[i].lineLength*std::cos(angle)*0.5);
-
-					//cv::putText(image_candidates, std::to_string(i), keylines[i].getEndPoint(), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0));
-					cv::putText(image_candidates, std::to_string(i), contour[i][0], cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0));
-					//cv::line(image_candidates, keylines[i].getStartPoint(), keylines[i].getEndPoint(), cv::Scalar(255, 0, 0), 2);
-					/*
-					std::cout << "perpencidularLineStartEndPoints[" << i << "][0].x = " << perpencidularLineStartEndPoints[i][0].x << ", perpencidularLineStartEndPoints[" << i << "][0].y = " << perpencidularLineStartEndPoints[i][0].y << std::endl;
-					std::cout << "std::cos(M_PI_2 + keylines[" << i << "].angle)*start_barcode_pos[" << i << "][2] = " << std::cos(M_PI_2 + keylines[i].angle)*start_barcode_pos[i][2] << std::endl;
-					std::cout << "std::sin(M_PI_2 + keylines[" << i << "].angle)*start_barcode_pos[" << i << "][2] = " << std::sin(M_PI_2 + keylines[i].angle)*start_barcode_pos[i][2] << std::endl;
-					*/
-					/*
-					std::cout << "contour[" << i << "][0] = " << contour[i][0] << ", contour[" << i << "][1] = " << contour[i][1] <<
-											 ", contour[" << i << "][2] = " << contour[i][2] << ", contour[" << i << "][3] = " << contour[i][3] << std::endl;
-					*/
-				}
-			}
-		}
-	}
+	end = std::chrono::steady_clock::now();
+	std::cout << "Calculated bounding boxes: " << std::chrono::duration <double, std::milli> (end - start).count() << " ms" << std::endl;
 
 	std::cout << "Total time: " << std::chrono::duration <double, std::milli> (end - total_start).count() << " ms" << std::endl;
 
