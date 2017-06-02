@@ -281,8 +281,90 @@ void createVectorsOfIntensities(std::vector<int> &support_candidates,
 	}
 }
 
+void computePhis(int delta,
+								 std::vector<int> &support_candidates,
+								 int support_candidates_threshold,
+								 std::vector<std::vector<std::vector<uchar>>> &intensities,
+								 int intensities_size,
+								 std::vector<std::vector<std::vector<int>>> &phis,
+								 std::vector<std::vector<int>> &startStopIntensitiesPosition,
+								 std::vector<std::vector<int>> &start_barcode_pos,
+								 std::vector<std::vector<int>> &end_barcode_pos) {
+	//#pragma omp parallel for
+	for(int i = 0; i < intensities_size; i++) {
+		if(support_candidates_threshold < support_candidates[i]) {
+			//#pragma omp parallel for
+			for(unsigned int j = 0; j < intensities[i].size()-1; j++) {
+				phis[i][j] = std::vector<int>(intensities[i][j].size());
+				int max = 0;
+				int min = 0;
+				//#pragma omp parallel for
+				for(int k = 0; k < static_cast<int>(intensities[i][j].size()); k++) {
+					int phi_1 = 0;
+					int phi_2 = 0;
+
+					int start = 0;
+					int end = 0;
+					if(0 <= (k - delta -1)) {
+						start = k - delta - 1;
+					} else {
+						start = 0;
+					}
+
+					if((startStopIntensitiesPosition[i][1] < k) && (start < startStopIntensitiesPosition[i][1])) {
+						end = startStopIntensitiesPosition[i][1];
+					} else {
+						end = k;
+					}
+
+					if((startStopIntensitiesPosition[i][0] > start) && (end > startStopIntensitiesPosition[i][0])) {
+						start = startStopIntensitiesPosition[i][0];
+					}
+
+					#pragma omp parallel for
+					for(int l = start; l < k; l++) {
+						phi_1 += std::abs(intensities[i][j][l + 1] - intensities[i][j][l]);
+					}
+
+					start = k;
+					if((startStopIntensitiesPosition[i][0] > start) && (end > startStopIntensitiesPosition[i][0])) {
+						start = startStopIntensitiesPosition[i][0];
+					}
+
+					if(static_cast<int>(intensities[i][j].size()) > (k + delta + 1)) {
+						end = k + delta + 1;
+					} else {
+						end = intensities[i][j].size();
+					}
+
+					if((startStopIntensitiesPosition[i][1] < end) && (start < startStopIntensitiesPosition[i][1])) {
+						end = startStopIntensitiesPosition[i][1];
+					}
+
+					#pragma omp parallel for
+					for(int l = start; l < end; l++) {
+						phi_2 += std::abs(intensities[i][j][l] - intensities[i][j][l + 1]);
+					}
+
+					phis[i][j][k] = phi_1 - phi_2;
+
+					if(phis[i][j][k] > max) {
+						max = phis[i][j][k];
+						end_barcode_pos[i][j] = k;
+					}
+					if(phis[i][j][k] < min) {
+						min = phis[i][j][k];
+						start_barcode_pos[i][j] = k;
+					}
+				}
+			}
+		}
+	}
+}
+
 int main(int argc, char** argv) {
   int support_candidates_threshold = 7;
+  int delta = 125;
 
   if(argc != 2) {
     std::cout << "Usage: display_image ImageToLoadAndDisplay" << std::endl;
@@ -398,6 +480,16 @@ int main(int argc, char** argv) {
 	/**
 		* @todo Only calculate phi with intensities != 0
 		*/
+	computePhis(delta,
+							support_candidates,
+							support_candidates_threshold,
+							intensities,
+							intensities_size,
+							phis,
+							startStopIntensitiesPosition,
+							start_barcode_pos,
+							end_barcode_pos);
+	/*
 	int delta = 125;
 	//#pragma omp parallel for
 	for(unsigned int i = 0; i < intensities.size(); i++) {
@@ -469,6 +561,7 @@ int main(int argc, char** argv) {
 			}
 		}
 	}
+	*/
 	end = std::chrono::steady_clock::now();
 	std::cout << "Compute phis: " << std::chrono::duration <double, std::milli> (end - start).count() << " ms" << std::endl;
 
@@ -494,8 +587,8 @@ int main(int argc, char** argv) {
 	std::vector<std::vector<cv::Point>> contour(keylinesInContours_size, std::vector<cv::Point>(4));
 	for(int i = 0; i < keylinesInContours_size; i++) {
 		int length = end_barcode_pos[i][2] - start_barcode_pos[i][2];
-		//if(support_candidates_threshold < support_candidates[i]) {
-		if(i == index) {
+		if(support_candidates_threshold < support_candidates[i]) {
+		//if(i == index) {
 			if((0 < length) && ((length / keylines[i].lineLength) < 10)) {
 				int diff_1 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][0]);
 				int diff_2 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][1]);
