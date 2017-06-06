@@ -466,6 +466,61 @@ void calculateBoundingBoxes(int keylinesInContours_size,
 	}
 }
 
+void filterContours(int keylinesInContours_size,
+										std::vector<bool> &deletedContours,
+										std::vector<int> &start_barcode_pos,
+										std::vector<int> &end_barcode_pos,
+										std::vector<cv::line_descriptor::KeyLine> &keylines,
+										int support_candidates_threshold,
+										std::vector<int> &support_candidates,
+										std::vector<std::vector<int>> &support_scores,
+										std::vector<std::vector<cv::Point>> &contours_barcodes) {
+
+	int length;
+	int keylines_i_lineLength;
+	cv::Point2f pt_i;
+	cv::Point2f pt_j;
+
+	for(int i = 0; i < keylinesInContours_size; i++) {
+		if(true == deletedContours[i]) {
+			continue;
+		}
+
+		length = end_barcode_pos[i] - start_barcode_pos[i];
+		keylines_i_lineLength = keylines[i].lineLength;
+		if(support_candidates_threshold < support_candidates[i]) {
+			if(0 < length) {
+				if((length / keylines_i_lineLength) < 10) {
+					for(int j = 0; j < keylinesInContours_size; j++) {
+						if(i == j) {
+							continue;
+						}
+						if(true == deletedContours[j]) {
+							continue;
+						}
+
+						pt_i = keylines[i].pt;
+						pt_j = keylines[j].pt;
+						if(std::abs(pt_i.x - pt_j.x) < 300) {
+							if(std::abs(pt_i.y - pt_j.y) < 100) {
+								if(support_scores[i] >= support_scores[j]) {
+									// Remove contour j
+									contours_barcodes[j].clear();
+									deletedContours[j] = true;
+								} else {
+									// Remove contour i
+									contours_barcodes[i].clear();
+									deletedContours[i] = true;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 int main(int argc, char** argv) {
   int support_candidates_threshold = 7;
   int delta = 125;
@@ -635,41 +690,15 @@ int main(int argc, char** argv) {
 		dc = false;
 	}
 
-	for(int i = 0; i < keylinesInContours_size; i++) {
-		if(true == deletedContours[i]) {
-			continue;
-		}
-
-		int length = end_barcode_pos[i] - start_barcode_pos[i];
-		int keylines_i_lineLength = keylines[i].lineLength;
-		if(support_candidates_threshold < support_candidates[i]) {
-			if(0 < length) {
-				if((length / keylines_i_lineLength) < 10) {
-					for(int j = 0; j < keylinesInContours_size; j++) {
-						if(i == j) {
-							continue;
-						}
-						if(true == deletedContours[j]) {
-							continue;
-						}
-
-						if(std::abs(keylines[i].pt.x - keylines[j].pt.x) < 300) {
-							if(std::abs(keylines[i].pt.y - keylines[j].pt.y) < 100) {
-								if(support_scores[i] >= support_scores[j]) {
-									// Remove contour j
-									contours_barcodes[j].clear();
-									deletedContours[j] = true;
-								} else {
-									contours_barcodes[i].clear();
-									deletedContours[i] = true;
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
+	filterContours(keylinesInContours_size,
+								 deletedContours,
+								 start_barcode_pos,
+								 end_barcode_pos,
+								 keylines,
+								 support_candidates_threshold,
+								 support_candidates,
+								 support_scores,
+								 contours_barcodes);
 
 	cv::drawContours(image_candidates, contours_barcodes, -1, cv::Scalar(255, 0, 0), 1);
 	end = std::chrono::steady_clock::now();
