@@ -17,7 +17,7 @@ if (OPENMP_FOUND)
 endif()
 
 add_executable(barcodelocalizer main.cpp)
-target_link_libraries(barcodelocalizer ${OpenCV_LIBS} ${MathGL_LIBRARIES})
+target_link_libraries(barcodelocalizer ${OpenCV_LIBS} ${MathGL_LIBRARIES} zbar)
 
 ## Compiler flags
 #if(CMAKE_COMPILER_IS_GNUCXX)
