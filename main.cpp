@@ -14,11 +14,12 @@
 using Barcode = std::tuple<std::string, std::string, std::vector<cv::Point>>;
 
 std::vector<std::vector<cv::Point>> getLineSegmentsContours(std::vector<cv::line_descriptor::KeyLine> &keylines,
-																														cv::Mat& image_lines) {
+																														cv::Mat& image_lines,
+																														int minLineLength) {
 	std::vector<std::vector<cv::Point>> contours;
 	for (auto it = keylines.begin(); it != keylines.end();) {
 		auto kl = *it;
-		if(30 < kl.lineLength) {
+		if(minLineLength < kl.lineLength) {
 			// For debug
 			//cv::line(image_lines, kl.getStartPoint(), kl.getEndPoint(), cv::Scalar(255, 0, 0));
 
@@ -390,7 +391,9 @@ void calculateBoundingBoxes(int keylinesInContours_size,
 														std::vector<std::vector<cv::Point>> &perpendicularLineStartEndPoints,
 														cv::Mat &image_candidates,
 														std::vector<bool> &deletedContours,
-														int index) {
+														int index,
+														int maxLengthToLineLengthRatio,
+														int minLengthToLineLengthRatio) {
 
 	/*
 	int length;
@@ -418,8 +421,8 @@ void calculateBoundingBoxes(int keylinesInContours_size,
 		if(false == deletedContours[i]) {
 			//if(i == index) {
 			if(0 < length) {
-				if((length / keylines_i_lineLength) < 8) {
-					if((length / keylines_i_lineLength) > 2) {
+				if((length / keylines_i_lineLength) < maxLengthToLineLengthRatio) {
+					if((length / keylines_i_lineLength) > minLengthToLineLengthRatio) {
 						/*
 						int diff_1 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][0]);
 						int diff_2 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][1]);
@@ -439,9 +442,9 @@ void calculateBoundingBoxes(int keylinesInContours_size,
 						std::cout << "support_candidates[" << i << "] = " << support_candidates[i] << std::endl;
 						std::cout << "diff_1 = " << diff_1 << ", diff_2 = " << diff_2 << ", diff_3 = " << diff_3 << ", diff_4 = " << diff_4 << std::endl;
 						std::cout << "Add one bounding box contour!" << std::endl;
-						*/
 						std::cout << "start_barcode_pos = " << start_barcode_pos[i] << " , end_barcode_pos = " << end_barcode_pos[i] << std::endl;// ", end_pos = " << phis[i][2].size() << ", angle = " << 180*angle/M_PI << std::endl;
 						std::cout << "keylines[" << i << "].lineLength = " << keylines[i].lineLength << std::endl;
+						*/
 						int perpendicularLineStartEndPoints_i_0_x = perpendicularLineStartEndPoints[i][0].x;
 						int perpendicularLineStartEndPoints_i_0_y = perpendicularLineStartEndPoints[i][0].y;
 						int start_barcode_pos_i = start_barcode_pos[i];
@@ -492,7 +495,9 @@ void filterContours(int keylinesInContours_size,
 										int support_candidates_threshold,
 										std::vector<int> &support_candidates,
 										std::vector<std::vector<int>> &support_scores,
-										std::vector<std::vector<cv::Point>> &contours_barcodes) {
+										std::vector<std::vector<cv::Point>> &contours_barcodes,
+										int inSegmentXDistance,
+										int inSegmentYDistance) {
 
 	int length;
 	int keylines_i_lineLength;
@@ -519,8 +524,8 @@ void filterContours(int keylinesInContours_size,
 
 				pt_i = keylines[i].pt;
 				pt_j = keylines[j].pt;
-				if(std::abs(pt_i.x - pt_j.x) < 300) {
-					if(std::abs(pt_i.y - pt_j.y) < 100) {
+				if(std::abs(pt_i.x - pt_j.x) < inSegmentXDistance) {
+					if(std::abs(pt_i.y - pt_j.y) < inSegmentYDistance) {
 						if(support_scores[i] >= support_scores[j]) {
 							// Remove contour j
 							contours_barcodes[j].clear();
@@ -636,8 +641,13 @@ void decodeBarcode(int keylinesInContours_size,
 }
 
 int main(int argc, char** argv) {
+  int minLineLength = 30;
+  int maxLengthToLineLengthRatio = 8;
+  int minLengthToLineLengthRatio = 2;
   int support_candidates_threshold = 7;
   int delta = 125;
+  int inSegmentXDistance = 300;
+  int inSegmentYDistance = 100;
 
   if(argc != 2) {
     std::cout << "Usage: display_image ImageToLoadAndDisplay" << std::endl;
@@ -676,7 +686,7 @@ int main(int argc, char** argv) {
 	std::cout << "Number of lines detected: " << keylines.size() << std::endl;
 
 	start = std::chrono::steady_clock::now();
-	std::vector<std::vector<cv::Point>> contours_lineSegments = getLineSegmentsContours(keylines, image_lines);
+	std::vector<std::vector<cv::Point>> contours_lineSegments = getLineSegmentsContours(keylines, image_lines, minLineLength);
 	end = std::chrono::steady_clock::now();
 	std::cout << "Creating bounding boxes: " << std::chrono::duration <double, std::milli> (end - start).count() << " ms" << std::endl;
 
@@ -791,7 +801,7 @@ int main(int argc, char** argv) {
 			}
 		}
 	}
-	index = 3327;
+	index = 0;
 	std::cout << "index = " << index << ", size() = " << intensities[index][2].size() << std::endl;
 
 	// Calculate bounding boxes
@@ -807,7 +817,9 @@ int main(int argc, char** argv) {
 												 perpendicularLineStartEndPoints,
 												 image_candidates,
 												 deletedContours,
-												 index);
+												 index,
+												 maxLengthToLineLengthRatio,
+												 minLengthToLineLengthRatio);
 
 	end = std::chrono::steady_clock::now();
 	std::cout << "Calculated bounding boxes: " << std::chrono::duration <double, std::milli> (end - start).count() << " ms" << std::endl;
@@ -823,7 +835,9 @@ int main(int argc, char** argv) {
 								 support_candidates_threshold,
 								 support_candidates,
 								 support_scores,
-								 contours_barcodes);
+								 contours_barcodes,
+								 inSegmentXDistance,
+								 inSegmentYDistance);
 
 	cv::drawContours(image_candidates, contours_barcodes, -1, cv::Scalar(255, 0, 0), 1);
 
