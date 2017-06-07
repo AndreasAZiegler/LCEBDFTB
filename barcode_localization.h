@@ -114,7 +114,7 @@ void computePhis(int delta,
  * @param start_barcode_pos Vector containing the start position for every contour/barcode
  * @param end_barcode_pos Vector containing the end position for every contour/barcode
  * @param keylines Vector containing all the contours.
- * @param contours Vector containing all the contours.
+ * @param contours_barcodes Vector containing all the contours.
  * @param perpendicularLineStartEndPoints Start and end point of the perpendicular line.
  * @param image_candidates Image in which the keylines are drawn for debugging.
  * @param deletedContours Binary vector which indicates which contours were deleted (deleted = true, not deleted = false).
@@ -126,7 +126,7 @@ void calculateBoundingBoxes(int keylinesInContours_size,
 														std::vector<int> &start_barcode_pos,
 														std::vector<int> &end_barcode_pos,
 														std::vector<cv::line_descriptor::KeyLine> &keylines,
-														std::vector<std::vector<cv::Point>> &contours,
+														std::vector<std::vector<cv::Point>> &contours_barcodes,
 														std::vector<std::vector<cv::Point>> &perpendicularLineStartEndPoints,
 														cv::Mat &image_candidates,
 														std::vector<bool> &deletedContours,

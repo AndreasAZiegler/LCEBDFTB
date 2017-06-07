@@ -7,6 +7,7 @@
 using Barcode = std::tuple<std::string, std::string, std::vector<cv::Point>>;
 
 int main(int argc, char** argv) {
+  // Parameters
   int minLineLength = 30;
   int maxLengthToLineLengthRatio = 8;
   int minLengthToLineLengthRatio = 2;

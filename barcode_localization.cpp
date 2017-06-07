@@ -5,12 +5,15 @@ std::vector<std::vector<cv::Point>> getLineSegmentsContours(std::vector<cv::line
 																														cv::Mat& image_lines,
 																														int minLineLength) {
 	std::vector<std::vector<cv::Point>> contours;
+	// Go throu all the keylines which were detected by the LSDetector
 	for (auto it = keylines.begin(); it != keylines.end();) {
 		auto kl = *it;
+		// Only process lines which are greater than minLIneLength
 		if(minLineLength < kl.lineLength) {
 			// For debug
 			//cv::line(image_lines, kl.getStartPoint(), kl.getEndPoint(), cv::Scalar(255, 0, 0));
 
+			// Define start and end point so that the line points upwards.
 			float linelength = kl.lineLength;
 			float angle = kl.angle;
 			float cos_angle = std::abs(std::cos(angle));
@@ -31,6 +34,7 @@ std::vector<std::vector<cv::Point>> getLineSegmentsContours(std::vector<cv::line
 				end_y = kl.startPointY;
 			}
 
+			// Create contour which is 4 times the line length in x-direction.
 			float temp_1 = 2*linelength*sin_angle;
 			float temp_2 = 5.0*linelength*cos_angle;
 
@@ -43,7 +47,7 @@ std::vector<std::vector<cv::Point>> getLineSegmentsContours(std::vector<cv::line
 			contours.push_back(contour);
 
 			++it;
-		} else {
+		} else { // Erase the keyline if it is too short.
 			keylines.erase(it);
 		}
 	}
@@ -56,6 +60,7 @@ void findContainingSegments(std::vector<std::vector<std::shared_ptr<cv::line_des
 														std::vector<std::vector<cv::Point>> contours,
 														int contours_size) {
 	#pragma omp parallel for
+	// Process every contour
 	for(int i = 0; i < contours_size; i++) {
 		register float px = keylines[i].pt.x;
 		register float py = keylines[i].pt.y;
@@ -63,14 +68,18 @@ void findContainingSegments(std::vector<std::vector<std::shared_ptr<cv::line_des
 
 		register int keylines_size = keylines.size();
 		#pragma omp parallel for
+		// Process every keyline
 		for(int j = 0; j < keylines_size; j++) {
+			// Add the keyline with the same number as the contour as its the contour based on this line.
 			if(i == j) {
 				keylinesInContours[i].push_back(std::make_shared<cv::line_descriptor::KeyLine>(keylines[j]));
 			}
 			else{
 				register cv::line_descriptor::KeyLine kl_j = keylines[j];
+				// Consider only keylines which are closer as ll_2 in x- and y-direction
 				if(std::abs(kl_j.pt.x - px) < ll_2) {
 					if(std::abs(kl_j.pt.y - py) < ll_2) {
+						// Check if segment is in contour
 						if((0 < cv::pointPolygonTest(contours[i], kl_j.getStartPoint(), false)) &&
 							 (0 < cv::pointPolygonTest(contours[i], kl_j.getEndPoint(), false))) {
 							keylinesInContours[i].push_back(std::make_shared<cv::line_descriptor::KeyLine>(keylines[j]));
@@ -86,10 +95,12 @@ void calculateSupportScores(std::vector<std::vector<std::shared_ptr<cv::line_des
 														std::vector<std::vector<int>> &support_scores,
 														int keylinesInContours_size) {
 	#pragma omp parallel for
+	// Process every contour
 	for(int i = 0; i < keylinesInContours_size; i++) {
 		int keylinesInContours_i_size = keylinesInContours[i].size();
 		support_scores[i] = std::vector<int>(keylinesInContours[i].size());
 		#pragma omp parallel for
+		// Initialize support_scores with 0.
 		for(int j = 0; j < keylinesInContours_i_size; ++j) {
 			support_scores[i][j] = 0;
 		}
@@ -99,6 +110,7 @@ void calculateSupportScores(std::vector<std::vector<std::shared_ptr<cv::line_des
 	register float diff_angle;
 	register float diff_norm_pt;
 	#pragma omp parallel for
+	// Check in every contour every possible keyline pair.
 	for(int i = 0; i < keylinesInContours_size; i++) {
 		int keylinesInContours_i_size = keylinesInContours[i].size();
 		#pragma omp parallel for
@@ -109,24 +121,18 @@ void calculateSupportScores(std::vector<std::vector<std::shared_ptr<cv::line_des
 				register std::shared_ptr<cv::line_descriptor::KeyLine> kl_k = keylinesInContours[i][k];
 
 				diff_length = std::abs(kl_j->lineLength - kl_k->lineLength);
-				//diff_length_vec.push_back(diff_length);
 
-				//if((diff_length) < 5.0) {
+				// Check length difference.
 				if((diff_length) < 4.0) {
 					diff_angle = std::abs(kl_j->angle - kl_k->angle);
-					//diff_angle_vec.push_back(diff_angle);
 
-					//if((diff_angle) < 3.0) {
+					// Check angle difference.
 					if((diff_angle) < 0.26) {
 						diff_norm_pt = cv::norm(kl_j->pt - kl_k->pt);
-						//diff_norm_pt_vec.push_back(diff_norm_pt);
 
+						// Check position difference
 						if((diff_norm_pt) < 300.0) {
-						//if((diff_norm_pt) < 400.0) {
-							/*
-							std::cout << "Under the thresholds" << std::endl;
-							std::cout << "diff_angle = " << diff_angle << ", diff_length = " << diff_length << ", diff_norm_pt = " << diff_norm_pt << std::endl;
-							*/
+							// Increase the support scores of the pair if all threshold are fine.
 							support_scores[i][j] += 1;
 							support_scores[i][k] += 1;
 						}
@@ -147,16 +153,15 @@ void selectSCand(std::vector<std::vector<int>> &support_scores,
 
 	#pragma omp parallel for
 	for(int i = 0; i < keylinesInContours_size; i++) {
+		// Get position of the maximum element.
 		support_candidates_pos[i] = std::distance(support_scores[i].begin(),
 																							std::max_element(support_scores[i].begin(),
 																							support_scores[i].end()));
-		//std::cout << "support_candidate_pos[" << i << "] = " << support_candidates_pos[i] << std::endl;
 
+		// Get support value of the maximum element.
 		support_candidates[i] = support_scores[i][std::distance(support_scores[i].begin(),
 																														std::max_element(support_scores[i].begin(),
 																														support_scores[i].end()))];
-		//std::cout << "max_support_candidates[" << i << "] = " << support_candidates[i] << std::endl;
-		//std::cout << "min_support_candidates[" << i << "] = " << support_scores[i][std::distance(support_scores[i].begin(), std::min_element(support_scores[i].begin(), support_scores[i].end()))] << std::endl;
 
 		// For debug
 		if(support_candidates_threshold < support_candidates[i]) {
@@ -200,12 +205,15 @@ void createVectorsOfIntensities(std::vector<int> &support_candidates,
 	int lineIterators_size_2;
 	int lineIterators_5_count;
 
+	// Process every contour.
 	for(int i = 0; i < intensities_size; i++) {
+		// Process only candidates above the support threshold
 		if(support_candidates_threshold < support_candidates[i]) {
 			std::shared_ptr<cv::line_descriptor::KeyLine> kl = keylinesInContours[i][support_candidates_pos[i]];
 
 			angle = kl->angle;
 			//std::cout << "angle = " << 180*angle/M_PI << std::endl;
+			// Decrease the angel by 90 degree if greater than 90 degree to remove ambiguity.
 			if(M_PI_2 < angle) {
 				angle -= M_PI_2;
 			}
@@ -213,6 +221,7 @@ void createVectorsOfIntensities(std::vector<int> &support_candidates,
 			kl_pt_y = kl->pt.y;
 			kl_pt_x = kl->pt.x;
 
+			// Handel different angel cases.
 			if(M_PI_4 > std::abs(angle)) {
 				if(0 < angle) {
 					angle	= (M_PI_2 - angle);
@@ -220,6 +229,7 @@ void createVectorsOfIntensities(std::vector<int> &support_candidates,
 					angle = -(M_PI_2 - std::abs(angle));
 				}
 
+				// Calculate start and end points
 				temp_1 = 600*std::sin(angle);
 				temp_start_x = kl_pt_x - temp_1;
 				temp_start_y = kl_pt_y - temp_1*(1/std::tan(angle));
@@ -231,12 +241,14 @@ void createVectorsOfIntensities(std::vector<int> &support_candidates,
 				temp_end_mock_x = kl_pt_x + (image_rows - kl_pt_y)*std::tan(angle);
 				temp_end_mock_y = image_rows;
 			} else {
+			// Handel different angel cases.
 				if(0 < angle) {
 					angle	= (M_PI_2 - angle);
 				} else {
 					angle = -(M_PI_2 - std::abs(angle));
 				}
 
+				// Calculate start and end points
 				temp_1 = 600*std::cos(angle);
 				temp_start_x = kl_pt_x - temp_1;
 				temp_start_y= kl_pt_y + temp_1*std::tan(angle);
@@ -252,6 +264,7 @@ void createVectorsOfIntensities(std::vector<int> &support_candidates,
 			startStopIntensitiesPosition[i][0] = temp_start_x;
 			startStopIntensitiesPosition[i][1] = temp_end_x;
 
+			// Create points for the lineIterators.
 			pt1s[0] = (cv::Point(temp_start_x, temp_start_y - 16));
 			pt1s[1] = (cv::Point(temp_start_x, temp_start_y - 8));
 			pt1s[2] = (cv::Point(temp_start_x, temp_start_y));
@@ -273,6 +286,7 @@ void createVectorsOfIntensities(std::vector<int> &support_candidates,
 			perpendicularLineStartEndPoints[i][1] = cv::Point(temp_end_mock_x, temp_end_mock_y);
 
 
+			// Create lineIterators
 			pt_size = pt1s.size();
 			std::vector<cv::LineIterator> lineIterators;
 			for(int j = 0; j < pt_size; j++) {
@@ -280,6 +294,7 @@ void createVectorsOfIntensities(std::vector<int> &support_candidates,
 				//cv::line(image_candidates, pt1s[j], pt2s[j], cv::Scalar(0, 255, 0), 1);
 			}
 
+			// Find start and end positon of the shortened lineIterators with the help of the mock lineIterator (lineIterators[5])
 			for(start = 0; (temp_start_x > lineIterators[5].pos().x) && (start < lineIterators[5].count); ++lineIterators[5], start++);
 			for(end = start; (temp_end_x > lineIterators[5].pos().x) && (end < lineIterators[5].count); ++lineIterators[5], end++);
 
@@ -288,15 +303,17 @@ void createVectorsOfIntensities(std::vector<int> &support_candidates,
 				lineIterators_5_count = lineIterators[5].count;
 				intensities[i][j] = std::vector<uchar>(lineIterators_5_count);
 
+				// Initialize intensity vector with 0.
 				for(uchar &intensity : intensities[i][j]) {
 					intensity = 0;
 				}
 
+				// Get intensities of the shortened line.
 				for(int k = start; k < end; k++, ++lineIterators[j]) {
 						intensities[i][j][k] = image_greyscale.at<uchar>(lineIterators[j].pos());
 				}
 			}
-		} else{
+		} else{ // If below the threshold, disable contour.
 			deletedContours[i] = true;
 		}
 	}
@@ -313,21 +330,25 @@ void computePhis(int delta,
 
 	int phis_i_5_k;
 	#pragma omp parallel for
+	// Process every contour
 	for(int i = 0; i < intensities_size; i++) {
 		int intensities_i_size = intensities[i].size();
 		int startStopIntensitiesPosition_i_0 = startStopIntensitiesPosition[i][0];
 		int startStopIntensitiesPosition_i_1 = startStopIntensitiesPosition[i][1];
 
-		//if(support_candidates_threshold < support_candidates[i]) {
+		// Only consider still active candidates.
 		if(false == deletedContours[i]) {
 			#pragma omp parallel for
+			// Process all the fife parallel lines.
 			for(int j = 0; j < intensities_i_size; j++) {
 				int intensities_i_j_size = intensities[i][j].size();
 				phis[i][j] = std::vector<int>(intensities_i_j_size);
 				#pragma omp parallel for
 				for(int k = 0; k < intensities_i_j_size; k++) {
+					// Only calculate phi values for areas, wher phi is not 0.
 					if(startStopIntensitiesPosition_i_0 - delta < k) {
 						if(startStopIntensitiesPosition_i_1 + delta > k) {
+							// Determine start and stop position.
 							int phi_1 = 0;
 							int phi_2 = 0;
 
@@ -346,11 +367,13 @@ void computePhis(int delta,
 								}
 							}
 
+							// Calculate first part of phi.
 							#pragma omp parallel for
 							for(int l = start_1; l < end_1; l++) {
 								phi_1 += std::abs(intensities[i][j][l + 1] - intensities[i][j][l]);
 							}
 
+							// Determine start and stop position.
 							int start_2 = k;
 							int end_2 = intensities_i_j_size;
 							if(startStopIntensitiesPosition_i_0 > start_2) {
@@ -369,6 +392,7 @@ void computePhis(int delta,
 								}
 							}
 
+							// Calculate second part of phi.
 							#pragma omp parallel for
 							for(int l = start_2; l < end_2; l++) {
 								phi_2 += std::abs(intensities[i][j][l] - intensities[i][j][l + 1]);
@@ -380,6 +404,7 @@ void computePhis(int delta,
 				}
 			}
 
+			// Calculate average phi (from the phi's of the 5 parallel lines).
 			phis[i][5] = std::vector<int>(phis[i][0].size());
 			int phis_i_5_size = phis[i][5].size();
 			for(int k = 0; k < phis_i_5_size; k++) {
@@ -387,9 +412,11 @@ void computePhis(int delta,
 				phis[i][5][k] = phis_i_5_k / 5;
 			}
 
+			// Get barcode start position.
 			start_barcode_pos[i] = std::distance(phis[i][5].begin(),
 																					 std::min_element(phis[i][5].begin(),
 																					 phis[i][5].end()));
+			// Get barcode end position.
 			end_barcode_pos[i] = std::distance(phis[i][5].begin(),
 																				 std::max_element(phis[i][5].begin(),
 																				 phis[i][5].end()));
@@ -401,7 +428,7 @@ void calculateBoundingBoxes(int keylinesInContours_size,
 														std::vector<int> &start_barcode_pos,
 														std::vector<int> &end_barcode_pos,
 														std::vector<cv::line_descriptor::KeyLine> &keylines,
-														std::vector<std::vector<cv::Point>> &contours,
+														std::vector<std::vector<cv::Point>> &contours_barcode,
 														std::vector<std::vector<cv::Point>> &perpendicularLineStartEndPoints,
 														cv::Mat &image_candidates,
 														std::vector<bool> &deletedContours,
@@ -428,21 +455,21 @@ void calculateBoundingBoxes(int keylinesInContours_size,
 	*/
 
 	#pragma omp parallel for
+	// Process all contours
 	for(int i = 0; i < keylinesInContours_size; i++) {
+		// Calculate barcode length
 		int length = end_barcode_pos[i] - start_barcode_pos[i];
+		// Get keyline-length (= barcode height).
 		float keylines_i_lineLength = keylines[i].lineLength;
-		//if(support_candidates_threshold < support_candidates[i]) {
 		if(false == deletedContours[i]) {
 			//if(i == index) {
+			// Only process candidates with a positive length.
 			if(0 < length) {
+				// Only process candidates with ritht ratios.
 				if((length / keylines_i_lineLength) < maxLengthToLineLengthRatio) {
 					if((length / keylines_i_lineLength) > minLengthToLineLengthRatio) {
-						/*
-						int diff_1 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][0]);
-						int diff_2 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][1]);
-						int diff_3 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][3]);
-						int diff_4 = std::abs(start_barcode_pos[i][2] - start_barcode_pos[i][4]);
-						*/
+
+						// Handle different angle cases.
 						float angle = keylines[i].angle;
 						if(0 < angle) {
 							angle	= (M_PI_2 - angle);
@@ -459,6 +486,7 @@ void calculateBoundingBoxes(int keylinesInContours_size,
 						std::cout << "start_barcode_pos = " << start_barcode_pos[i] << " , end_barcode_pos = " << end_barcode_pos[i] << std::endl;// ", end_pos = " << phis[i][2].size() << ", angle = " << 180*angle/M_PI << std::endl;
 						std::cout << "keylines[" << i << "].lineLength = " << keylines[i].lineLength << std::endl;
 						*/
+						// Calculate coordinates of the points for the barcode_contours.
 						int perpendicularLineStartEndPoints_i_0_x = perpendicularLineStartEndPoints[i][0].x;
 						int perpendicularLineStartEndPoints_i_0_y = perpendicularLineStartEndPoints[i][0].y;
 						int start_barcode_pos_i = start_barcode_pos[i];
@@ -471,13 +499,13 @@ void calculateBoundingBoxes(int keylinesInContours_size,
 						float tmp_4 = keylines_i_lineLength*sin_angle*0.5;
 						float tmp_5 = keylines_i_lineLength*cos_angle*0.5;
 
-						contours[i][0] = cv::Point(tmp_0 - tmp_4,
+						contours_barcode[i][0] = cv::Point(tmp_0 - tmp_4,
 																			tmp_1 - tmp_5);
-						contours[i][1] = cv::Point(tmp_2 - tmp_4,
+						contours_barcode[i][1] = cv::Point(tmp_2 - tmp_4,
 																			tmp_3 - tmp_5);
-						contours[i][2] = cv::Point(tmp_2 + tmp_4,
+						contours_barcode[i][2] = cv::Point(tmp_2 + tmp_4,
 																			tmp_3 + tmp_5);
-						contours[i][3] = cv::Point(tmp_0 + tmp_4,
+						contours_barcode[i][3] = cv::Point(tmp_0 + tmp_4,
 																			tmp_1 + tmp_5);
 
 						cv::line(image_candidates, keylines[i].getStartPoint(), keylines[i].getEndPoint(), cv::Scalar(255, 0, 0), 2);
@@ -487,13 +515,13 @@ void calculateBoundingBoxes(int keylinesInContours_size,
 						std::cout << "contour[" << i << "][0] = " << contour[i][0] << ", contour[" << i << "][1] = " << contour[i][1] <<
 												 ", contour[" << i << "][2] = " << contour[i][2] << ", contour[" << i << "][3] = " << contour[i][3] << std::endl;
 						*/
-					} else {
+					} else { // Deactivate candidate.
 						deletedContours[i] = true;
 					}
-				} else {
+				} else { // Deactivate candidate.
 					deletedContours[i] = true;
 				}
-			} else {
+			} else { // Deactivate candidate.
 				deletedContours[i] = true;
 			}
 			//} // End index else
@@ -516,28 +544,35 @@ void filterContours(int keylinesInContours_size,
 	cv::Point2f pt_i;
 	cv::Point2f pt_j;
 
+	// Process all barcode-contours
 	for(int i = 0; i < keylinesInContours_size; i++) {
+		// Only process if not deactivated.
 		if(true == deletedContours[i]) {
 			continue;
 		}
 
+		// Calculate length of barcode.
 		length = end_barcode_pos[i] - start_barcode_pos[i];
+		// Get keyline length (= height of barcode).
 		keylines_i_lineLength = keylines[i].lineLength;
 		if(false == deletedContours[i]) {
-			//if(0 < length) {
-			//if((length / keylines_i_lineLength) < 10) {
+			// Go through ever keyline.
 			for(int j = 0; j < keylinesInContours_size; j++) {
+				// Skip the same keyline.
 				if(i == j) {
 					continue;
 				}
+				// Skip already deactivated keylines.
 				if(true == deletedContours[j]) {
 					continue;
 				}
 
 				pt_i = keylines[i].pt;
 				pt_j = keylines[j].pt;
+				// If keyline is close to the current keyline (they belong to the same barcode).
 				if(std::abs(pt_i.x - pt_j.x) < inSegmentXDistance) {
 					if(std::abs(pt_i.y - pt_j.y) < inSegmentYDistance) {
+						// Remove the candidate with the lower score.
 						if(support_scores[i] >= support_scores[j]) {
 							// Remove contour j
 							contours_barcodes[j].clear();
@@ -614,20 +649,26 @@ void decodeBarcode(int keylinesInContours_size,
 									 std::vector<std::vector<cv::Point>> &contours_barcodes,
 									 cv::Mat & image_greyscale,
 									 cv::Mat & image_barcodes) {
+
+	// Create zbar-scanner
 	zbar::ImageScanner scanner;
 	std::vector<cv::Point> scaledContour;
 	cv::Rect roi;
 	cv::Mat croppedImage;
 	std::string barcode;
 
+	// Set config for zbar
 	scanner.set_config(zbar::ZBAR_NONE, zbar::ZBAR_CFG_ENABLE, 1);
 
 	std::vector<std::vector<cv::Point>> scaledCroppedContours;
+	// Process every contour
 	for(int i = 0; i < keylinesInContours_size; i++) {
+		// Skip deactivated candidates.
 		if(true == deletedContours[i]) {
 			continue;
 		}
 
+		// Scale contour and bound it to the image.
 		scaledContour = scaleContour(1.5, contours_barcodes[i], image_barcodes);
 		roi = cv::boundingRect(scaledContour);
 		roi = clamRoiToImage(roi, image_barcodes);
@@ -638,7 +679,9 @@ void decodeBarcode(int keylinesInContours_size,
 		scaledCroppedContours.push_back(scaledCroppedContour);
 
 		image_greyscale(roi).copyTo(croppedImage);
+		// Set zbar image
 		zbar::Image zbar_image(croppedImage.cols, croppedImage.rows, "Y800", croppedImage.data, croppedImage.cols * croppedImage.rows);
+		// Scan image for barcodes
 		scanner.scan(zbar_image);
 
     // Use first detected barcode reading from image
@@ -646,7 +689,9 @@ void decodeBarcode(int keylinesInContours_size,
     barcode = symbol->get_data();
     cv::putText(image_barcodes, barcode, contours_barcodes[i][0], cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0));
   }
+  // Draw barcode contour
   cv::drawContours(image_barcodes, contours_barcodes, -1, cv::Scalar(255, 0, 0));
+  // Draw scaled contour (in which zbar tried to decode a barcode).
   cv::drawContours(image_barcodes, scaledCroppedContours, -1, cv::Scalar(0, 0, 255), 1);
   cv::imwrite("debug-barcodes.jpg", image_barcodes);
 }
