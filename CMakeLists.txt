@@ -16,7 +16,10 @@ if (OPENMP_FOUND)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
-add_executable(barcodelocalizer main.cpp)
+FILE(GLOB_RECURSE LibFiles "*.h")
+add_custom_target(headers SOURCES ${LibFiles})
+
+add_executable(barcodelocalizer main.cpp barcode_localization.cpp)
 target_link_libraries(barcodelocalizer ${OpenCV_LIBS} ${MathGL_LIBRARIES} zbar)
 
 ## Compiler flags
