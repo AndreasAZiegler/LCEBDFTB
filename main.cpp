@@ -189,6 +189,7 @@ void createVectorsOfIntensities(std::vector<int> &support_candidates,
 																std::vector<std::vector<std::vector<uchar>>> &intensities,
 																cv::Mat &image_greyscale,
 																int image_cols,
+																int image_rows,
 																int intensities_size,
 																int support_candidates_threshold,
 																std::vector<bool> &deletedContours) {
@@ -197,12 +198,16 @@ void createVectorsOfIntensities(std::vector<int> &support_candidates,
 	float kl_pt_y;
 	float temp_0;
 	float temp_1;
-	float temp_2;
-	int temp_start;
-	int temp_end;
+	float temp_start_y;
+	int temp_start_x;
+	int temp_end_x;
+	int temp_start_mock_x;
+	int temp_start_mock_y;
+	int temp_end_mock_x;
+	int temp_end_mock_y;
 	std::vector<cv::Point> pt1s(6);
 	float temp_3;
-	float temp_4;
+	float temp_end_y;
 	std::vector<cv::Point> pt2s(6);
 	int pt_size;
 	int start;
@@ -215,43 +220,72 @@ void createVectorsOfIntensities(std::vector<int> &support_candidates,
 			std::shared_ptr<cv::line_descriptor::KeyLine> kl = keylinesInContours[i][support_candidates_pos[i]];
 
 			angle = kl->angle;
-			if(0 < angle) {
-				angle	= (M_PI_2 - angle);
-			} else {
-				angle = -(M_PI_2 - std::abs(angle));
+			//std::cout << "angle = " << 180*angle/M_PI << std::endl;
+			if(M_PI_2 < angle) {
+				angle -= M_PI_2;
 			}
 
 			kl_pt_y = kl->pt.y;
 			kl_pt_x = kl->pt.x;
 
-			temp_0= kl_pt_y + kl_pt_x*std::tan(angle);
-			temp_1 = 600*std::cos(angle);
-			temp_2= kl_pt_y + temp_1*std::tan(angle);
+			if(M_PI_4 > std::abs(angle)) {
+				if(0 < angle) {
+					angle	= (M_PI_2 - angle);
+				} else {
+					angle = -(M_PI_2 - std::abs(angle));
+				}
 
-			temp_start = kl_pt_x - temp_1;
-			temp_end = kl_pt_x + temp_1;
-			startStopIntensitiesPosition[i][0] = temp_start;
-			startStopIntensitiesPosition[i][1] = temp_end;
+				temp_1 = 600*std::sin(angle);
+				temp_start_x = kl_pt_x - temp_1;
+				temp_start_y = kl_pt_y - temp_1*(1/std::tan(angle));
+				temp_end_x = kl_pt_x + temp_1;
+				temp_end_y = kl_pt_y + temp_1*(1/std::tan(angle));
 
-			pt1s[0] = (cv::Point(temp_start, temp_2 - 16));
-			pt1s[1] = (cv::Point(temp_start, temp_2 - 8));
-			pt1s[2] = (cv::Point(temp_start, temp_2));
-			pt1s[3] = (cv::Point(temp_start, temp_2 + 8));
-			pt1s[4] = (cv::Point(temp_start, temp_2 + 16));
-			pt1s[5] = cv::Point(0, temp_0);
+				temp_start_mock_x = kl_pt_x - kl_pt_y*std::tan(angle);
+				temp_start_mock_y = 0;
+				temp_end_mock_x = kl_pt_x + (image_rows - kl_pt_y)*std::tan(angle);
+				temp_end_mock_y = image_rows;
+			} else {
+				if(0 < angle) {
+					angle	= (M_PI_2 - angle);
+				} else {
+					angle = -(M_PI_2 - std::abs(angle));
+				}
 
+				temp_1 = 600*std::cos(angle);
+				temp_start_x = kl_pt_x - temp_1;
+				temp_start_y= kl_pt_y + temp_1*std::tan(angle);
+				temp_end_x = kl_pt_x + temp_1;
+				temp_end_y = kl_pt_y - temp_1*std::tan(angle);
+
+				temp_start_mock_x = 0;
+				temp_start_mock_y = kl_pt_y + kl_pt_x*std::tan(angle);
+				temp_end_mock_x = image_cols;
+				temp_end_mock_y = kl_pt_y - (image_cols - kl_pt_x)*std::tan(angle);
+			}
+
+			startStopIntensitiesPosition[i][0] = temp_start_x;
+			startStopIntensitiesPosition[i][1] = temp_end_x;
+
+			pt1s[0] = (cv::Point(temp_start_x, temp_start_y - 16));
+			pt1s[1] = (cv::Point(temp_start_x, temp_start_y - 8));
+			pt1s[2] = (cv::Point(temp_start_x, temp_start_y));
+			pt1s[3] = (cv::Point(temp_start_x, temp_start_y + 8));
+			pt1s[4] = (cv::Point(temp_start_x, temp_start_y + 16));
+			pt1s[5] = cv::Point(temp_start_mock_x, temp_start_mock_y);
+
+			pt2s[0] = (cv::Point(temp_end_x, temp_end_y - 16));
+			pt2s[1] = (cv::Point(temp_end_x, temp_end_y - 8));
+			pt2s[2] = (cv::Point(temp_end_x, temp_end_y));
+			pt2s[3] = (cv::Point(temp_end_x, temp_end_y + 8));
+			pt2s[4] = (cv::Point(temp_end_x, temp_end_y + 16));
+			pt2s[5] = cv::Point(temp_end_mock_x, temp_end_mock_y);
+
+			temp_0 = kl_pt_y + kl_pt_x*std::tan(angle);
 			temp_3 = kl_pt_y - (image_cols - kl_pt_x)*std::tan(angle);
-			temp_4 = kl_pt_y - temp_1*std::tan(angle);
 
-			pt2s[0] = (cv::Point(temp_end, temp_4 - 16));
-			pt2s[1] = (cv::Point(temp_end, temp_4 - 8));
-			pt2s[2] = (cv::Point(temp_end, temp_4));
-			pt2s[3] = (cv::Point(temp_end, temp_4 + 8));
-			pt2s[4] = (cv::Point(temp_end, temp_4 + 16));
-			pt2s[5] = cv::Point(image_cols, temp_3);
-
-			perpendicularLineStartEndPoints[i][0] = cv::Point(0, temp_0);
-			perpendicularLineStartEndPoints[i][1] = cv::Point(image_cols, temp_3);
+			perpendicularLineStartEndPoints[i][0] = cv::Point(temp_start_mock_x, temp_start_mock_y);
+			perpendicularLineStartEndPoints[i][1] = cv::Point(temp_end_mock_x, temp_end_mock_y);
 
 
 			pt_size = pt1s.size();
@@ -261,8 +295,8 @@ void createVectorsOfIntensities(std::vector<int> &support_candidates,
 				//cv::line(image_candidates, pt1s[j], pt2s[j], cv::Scalar(0, 255, 0), 1);
 			}
 
-			for(start = 0; temp_start > lineIterators[5].pos().x; ++lineIterators[5], start++);
-			for(end = start; temp_end > lineIterators[5].pos().x; ++lineIterators[5], end++);
+			for(start = 0; (temp_start_x > lineIterators[5].pos().x) && (start < lineIterators[5].count); ++lineIterators[5], start++);
+			for(end = start; (temp_end_x > lineIterators[5].pos().x) && (end < lineIterators[5].count); ++lineIterators[5], end++);
 
 			lineIterators_size_2 = lineIterators.size() - 1;
 			for(int j = 0; j < lineIterators_size_2; j++) {
@@ -751,6 +785,7 @@ int main(int argc, char** argv) {
 
 	int intensities_size = intensities.size();
 	int image_cols = image_greyscale.cols;
+	int image_rows = image_greyscale.rows;
 
 	createVectorsOfIntensities(support_candidates,
 														 support_candidates_pos,
@@ -760,6 +795,7 @@ int main(int argc, char** argv) {
 														 intensities,
 														 image_greyscale,
 														 image_cols,
+														 image_rows,
 														 intensities_size,
 														 support_candidates_threshold,
 														 deletedContours);
