@@ -7,6 +7,27 @@
 #include <opencv2/line_descriptor/descriptor.hpp>
 
 /**
+ * @brief locateBarcode Locates barcode areas on the given picture and uses zbar to decode them.
+ * @param image_color Image on which barcodes should be localized/decoded.
+ * @param minLineLength Threshold length for under which a line is ignored.
+ * @param support_candidates_threshold Threshold for the support value under which contours are ignored.
+ * @param delta Number of comparisons (L_i in the paper).
+ * @param maxLengthToLineLengthRatio Threshold to ignore contours with a too high length / line-length ratio.
+ * @param minLengthToLineLengthRatio Threshold to ignore contours with a too low length / line-length ratio.
+ * @param inSegmentXDistance Distance in x-direction for segements within a contour. Used as filter parameter.
+ * @param inSegmentYDistance Distance in y-direction for segements within a contour. Used as filter parameter.
+ * @return
+ */
+std::vector<std::string> locateBarcode(cv::Mat image_color,
+																			 int minLineLength,
+																			 int support_candidates_threshold,
+																			 int delta,
+																			 int maxLengthToLineLengthRatio,
+																			 int minLengthToLineLengthRatio,
+																			 int inSegmentXDistance,
+																			 int inSegmentYDistance);
+
+/**
  * @brief getLineSegmentsContours Creates contours around the keylines.
  * @param keylines Vector containing all the contours.
  * @param image_lines Image, in which the keylines are drawn for debugging.
@@ -48,7 +69,7 @@ void calculateSupportScores(std::vector<std::vector<std::shared_ptr<cv::line_des
  * @param keylinesInContours Vector which contains for every contour the containing keylines.
  * @param image_candidates Image the selected segments are drawn in for debugging.
  * @param keylinesInContours_size Size of the keylinesInCountours vector.
- * @param support_candidates_threshold
+ * @param support_candidates_threshold Threshold for the support value under which contours are ignored.
  */
 void selectSCand(std::vector<std::vector<int>> &support_scores,
 								 std::vector<int> &support_candidates,
@@ -193,10 +214,10 @@ cv::Rect clamRoiToImage(cv::Rect roi, const cv::Mat& image);
  * @param image_greyscale Greyscale image.
  * @param image_barcodes Image where the barcode numbers are drawn on.
  */
-void decodeBarcode(int keylinesInContours_size,
-									 std::vector<bool> &deletedContours,
-									 std::vector<std::vector<cv::Point>> &contours_barcodes,
-									 cv::Mat & image_greyscale,
-									 cv::Mat & image_barcodes);
+std::vector<std::string> decodeBarcode(int keylinesInContours_size,
+																			 std::vector<bool> &deletedContours,
+																			 std::vector<std::vector<cv::Point>> &contours_barcodes,
+																			 cv::Mat & image_greyscale,
+																			 cv::Mat & image_barcodes);
 
 #endif // BARCODE_LOCALIZATION_H
