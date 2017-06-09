@@ -1,13 +1,19 @@
 cmake_minimum_required(VERSION 2.8)
 
-SET(CMAKE_BUILD_TYPE Debug)
+SET(CMAKE_BUILD_TYPE Release)
 project(LCEBDFTB)
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall")
 
+## Compiler flags
+if(CMAKE_COMPILER_IS_GNUCXX)
+    set(CMAKE_CXX_FLAGS "-O3")        ## Optimize
+    set(CMAKE_EXE_LINKER_FLAGS "-s")  ## Strip binary
+endif()
+
 find_package(OpenCV 3.2 REQUIRED)
 
-find_package(MathGL REQUIRED)
+#find_package(MathGL REQUIRED)
 
 find_package(OpenMP)
 if (OPENMP_FOUND)
@@ -19,11 +25,13 @@ endif()
 FILE(GLOB_RECURSE LibFiles "*.h")
 add_custom_target(headers SOURCES ${LibFiles})
 
-add_executable(barcodelocalizer main.cpp barcode_localization.cpp)
-target_link_libraries(barcodelocalizer ${OpenCV_LIBS} ${MathGL_LIBRARIES} zbar)
+add_library(LCEBDFTB SHARED barcode_localization.cpp)
+#target_link_libraries(barcodelocalizer ${OpenCV_LIBS} ${MathGL_LIBRARIES} zbar)
+target_link_libraries(LCEBDFTB ${OpenCV_LIBS})
 
-## Compiler flags
-#if(CMAKE_COMPILER_IS_GNUCXX)
-#    set(CMAKE_CXX_FLAGS "-O3")        ## Optimize
-#    set(CMAKE_EXE_LINKER_FLAGS "-s")  ## Strip binary
-#endif()
+# Install library
+install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_SOURCE_DIR}/lib/${PROJECT_NAME})
+
+# Install library headers
+file(GLOB HEADERS *.h)
+install(FILES ${HEADERS} DESTINATION ${CMAKE_SOURCE_DIR}/include/${PROJECT_NAME})
