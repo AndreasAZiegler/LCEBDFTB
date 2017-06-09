@@ -2,14 +2,14 @@
 #include <chrono>
 #include <zbar.h>
 
-std::vector<std::string> locateBarcode(cv::Mat image_color,
-																			 int minLineLength,
-																			 int support_candidates_threshold,
-																			 int delta,
-																			 int maxLengthToLineLengthRatio,
-																			 int minLengthToLineLengthRatio,
-																			 int inSegmentXDistance,
-																			 int inSegmentYDistance) {
+std::vector<std::vector<cv::Point>> locateBarcode(cv::Mat image_color,
+																									int minLineLength,
+																									int support_candidates_threshold,
+																									int delta,
+																									int maxLengthToLineLengthRatio,
+																									int minLengthToLineLengthRatio,
+																									int inSegmentXDistance,
+																									int inSegmentYDistance) {
 
   cv::Mat image_greyscale;
   cv::cvtColor(image_color, image_greyscale, CV_BGR2GRAY );
@@ -131,6 +131,7 @@ std::vector<std::string> locateBarcode(cv::Mat image_color,
 
 	// For debugging
 	// Select a good line segment example
+	/*
 	int index = 0;
 	int nmb = 0;
 	bool finish = false;
@@ -146,6 +147,8 @@ std::vector<std::string> locateBarcode(cv::Mat image_color,
 	}
 	index = 0;
 	std::cout << "index = " << index << ", size() = " << intensities[index][2].size() << std::endl;
+	*/
+	int index = 0;
 
 	// Calculate bounding boxes
 	start = std::chrono::steady_clock::now();
@@ -191,6 +194,7 @@ std::vector<std::string> locateBarcode(cv::Mat image_color,
 	std::cout << "Filtering bounding boxes: " << std::chrono::duration <double, std::milli> (end - start).count() << " ms" << std::endl;
 
 	// barcode decoding with ZBar
+	/*
 	start = std::chrono::steady_clock::now();
 
 	cv::Mat image_barcodes;
@@ -202,8 +206,9 @@ std::vector<std::string> locateBarcode(cv::Mat image_color,
   std::cout << "Barcode decoding: " << std::chrono::duration <double, std::milli> (end - start).count() << " ms" << std::endl;
 
   std::cout << "Total time: " << std::chrono::duration <double, std::milli> (end - total_start).count() << " ms" << std::endl;
+  */
 
-  return(barcodes);
+  return(contours_barcodes);
 }
 
 std::vector<std::vector<cv::Point>> getLineSegmentsContours(std::vector<cv::line_descriptor::KeyLine> &keylines,

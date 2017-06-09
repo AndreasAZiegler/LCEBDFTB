@@ -16,16 +16,16 @@
  * @param minLengthToLineLengthRatio Threshold to ignore contours with a too low length / line-length ratio.
  * @param inSegmentXDistance Distance in x-direction for segements within a contour. Used as filter parameter.
  * @param inSegmentYDistance Distance in y-direction for segements within a contour. Used as filter parameter.
- * @return
+ * @return Contours around the barcodes.
  */
-std::vector<std::string> locateBarcode(cv::Mat image_color,
-																			 int minLineLength,
-																			 int support_candidates_threshold,
-																			 int delta,
-																			 int maxLengthToLineLengthRatio,
-																			 int minLengthToLineLengthRatio,
-																			 int inSegmentXDistance,
-																			 int inSegmentYDistance);
+std::vector<std::vector<cv::Point> > locateBarcode(cv::Mat image_color,
+																									 int minLineLength,
+																									 int support_candidates_threshold,
+																									 int delta,
+																									 int maxLengthToLineLengthRatio,
+																									 int minLengthToLineLengthRatio,
+																									 int inSegmentXDistance,
+																									 int inSegmentYDistance);
 
 /**
  * @brief getLineSegmentsContours Creates contours around the keylines.
