@@ -24,3 +24,5 @@ To build from source, clone the latest version from this repository and compile 
  	cmake ..
 	make
   	make install
+
+After this, you will find the library in the folder "lib" and the headers in the folder "include".
