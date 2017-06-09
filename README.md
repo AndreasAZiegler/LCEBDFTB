@@ -19,8 +19,8 @@ To build from source, clone the latest version from this repository and compile 
 
 	git clone https://github.com/AndreasAZiegler/LCEBDFTB.git
 	cd LCEBDFTB
-  mkdir build
-  cd buil
-  cmake ..
+  	mkdir build
+ 	cd buil
+ 	cmake ..
 	make
-  make install
+  	make install
